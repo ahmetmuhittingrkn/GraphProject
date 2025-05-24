@@ -472,43 +472,80 @@ tvStand.material = tvFrameMaterial;
 // TV'yi pencereyle aynı yere konumlandır
 tvGroup.position = new BABYLON.Vector3(0, 1.5, roomDepth/2 - 0.05);
 
-// Tablo eklemek için gelişmiş fonksiyon
-function addPaintingToWall(positionX, positionY, positionZ, rotationY, width, height, color, texturePath, frameName) {
-    console.log(`Tablo oluşturuluyor: ${frameName}, texture path: ${texturePath}`);
+// Gelişmiş tablo ekleme fonksiyonu
+function addBeautifulPainting(positionX, positionY, positionZ, rotationY, width, height, paintingType, frameName) {
+    console.log(`Tablo oluşturuluyor: ${frameName}, tip: ${paintingType}`);
     
     // Tablo grubu oluştur
     let paintingGroup = new BABYLON.TransformNode(frameName + "_group", scene);
     
-    // Çerçeve materyal
+    // Çerçeve materyal - daha güzel ahşap görünüm
     let frameMaterial = new BABYLON.StandardMaterial(frameName + "_frame_material", scene);
-    frameMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1); // Koyu ahşap çerçeve
+    frameMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.15, 0.05); // Koyu ahşap
+    frameMaterial.specularColor = new BABYLON.Color3(0.1, 0.05, 0.02);
+    frameMaterial.roughness = 0.8;
     
-    // Resim materyal
+    // Resim materyali
     let paintingMaterial = new BABYLON.StandardMaterial(frameName + "_material", scene);
     
-    // Önce renk ata (fallback olarak)
-    paintingMaterial.diffuseColor = color;
-    
-    // Ardından texture'ı deneyerek yükle
-    try {
-        console.log(`${frameName} için texture yükleme denemesi: ${texturePath}`);
-        paintingMaterial.diffuseTexture = new BABYLON.Texture(texturePath, scene, true, false);
-        paintingMaterial.diffuseTexture.onLoadObservable.add(() => {
-            console.log(`${frameName} texture başarıyla yüklendi!`);
-        });
-    } catch (e) {
-        console.log(`${frameName} texture yüklenemedi, renk kullanılıyor:`, e);
-        // Zaten renk atanmıştı, bir şey yapmaya gerek yok
+    // Farklı tablo türleri
+    if (paintingType === "abstract") {
+        // Soyut sanat - vibrant renkler
+        paintingMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.2, 0.4);
+        paintingMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.05, 0.1);
+    } else if (paintingType === "landscape") {
+        // Manzara - doğa renkleri
+        paintingMaterial.diffuseColor = new BABYLON.Color3(0.2, 0.6, 0.3);
+        paintingMaterial.emissiveColor = new BABYLON.Color3(0.05, 0.1, 0.05);
+    } else if (paintingType === "portrait") {
+        // Portre - sıcak tonlar
+        paintingMaterial.diffuseColor = new BABYLON.Color3(0.7, 0.5, 0.3);
+        paintingMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.08, 0.05);
+    } else if (paintingType === "modern") {
+        // Modern art - cool tonlar
+        paintingMaterial.diffuseColor = new BABYLON.Color3(0.2, 0.4, 0.8);
+        paintingMaterial.emissiveColor = new BABYLON.Color3(0.05, 0.08, 0.15);
     }
     
-    // Büyük, belirgin çerçeve
-    let frame = BABYLON.MeshBuilder.CreateBox(frameName + "_frame", {
-        width: width + 0.3,
-        height: height + 0.3,
-        depth: 0.08
+    // Texture yüklemeyi dene
+    let texturePath = `textures/${frameName}.jpg`;
+    try {
+        console.log(`${frameName} için texture yükleme denemesi: ${texturePath}`);
+        let texture = new BABYLON.Texture(texturePath, scene, true, false);
+        texture.onLoadObservable.add(() => {
+            console.log(`${frameName} texture başarıyla yüklendi!`);
+            paintingMaterial.diffuseTexture = texture;
+        });
+        texture.onErrorObservable.add(() => {
+            console.log(`${frameName} texture yüklenemedi, prosedürel pattern kullanılıyor`);
+            createProceduralPainting(paintingMaterial, paintingType, frameName);
+        });
+    } catch (e) {
+        console.log(`${frameName} texture yüklenemedi, prosedürel pattern oluşturuluyor:`, e);
+        createProceduralPainting(paintingMaterial, paintingType, frameName);
+    }
+    
+    // Dış çerçeve (kalın)
+    let outerFrame = BABYLON.MeshBuilder.CreateBox(frameName + "_outer_frame", {
+        width: width + 0.4,
+        height: height + 0.4,
+        depth: 0.12
     }, scene);
-    frame.parent = paintingGroup;
-    frame.material = frameMaterial;
+    outerFrame.parent = paintingGroup;
+    outerFrame.material = frameMaterial;
+    
+    // İç çerçeve (ince)
+    let innerFrame = BABYLON.MeshBuilder.CreateBox(frameName + "_inner_frame", {
+        width: width + 0.1,
+        height: height + 0.1,
+        depth: 0.06
+    }, scene);
+    innerFrame.parent = paintingGroup;
+    innerFrame.position.z = 0.03;
+    let innerFrameMaterial = new BABYLON.StandardMaterial(frameName + "_inner_frame_material", scene);
+    innerFrameMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.7, 0.5); // Altın rengi
+    innerFrameMaterial.specularColor = new BABYLON.Color3(0.9, 0.8, 0.6);
+    innerFrame.material = innerFrameMaterial;
     
     // Resim içeriği
     let painting = BABYLON.MeshBuilder.CreateBox(frameName + "_painting", {
@@ -517,41 +554,455 @@ function addPaintingToWall(positionX, positionY, positionZ, rotationY, width, he
         depth: 0.02
     }, scene);
     painting.parent = paintingGroup;
-    painting.position.z = 0.04;
+    painting.position.z = 0.08;
     painting.material = paintingMaterial;
     
     // Konumlandırma
     paintingGroup.position = new BABYLON.Vector3(positionX, positionY, positionZ);
     paintingGroup.rotation.y = rotationY;
     
-    console.log(`Tablo başarıyla eklendi: ${frameName}`);
+    // Gölge ekleme
+    if (shadowGenerator) {
+        shadowGenerator.addShadowCaster(outerFrame);
+        shadowGenerator.addShadowCaster(innerFrame);
+        shadowGenerator.addShadowCaster(painting);
+        outerFrame.receiveShadows = true;
+        innerFrame.receiveShadows = true;
+        painting.receiveShadows = true;
+    }
     
+    console.log(`Tablo başarıyla eklendi: ${frameName}`);
     return paintingGroup;
 }
 
-// Birinci tablo - TV'nin sol tarafına (farklı renk kullan)
-addPaintingToWall(
+// Prosedürel tablo deseni oluşturma
+function createProceduralPainting(material, paintingType, frameName) {
+    // Dynamic texture oluştur
+    let dynamicTexture = new BABYLON.DynamicTexture(frameName + "_dynamic", {width: 512, height: 512}, scene);
+    let context = dynamicTexture.getContext();
+    
+    // Canvas boyutları
+    let width = 512;
+    let height = 512;
+    
+    if (paintingType === "abstract") {
+        // Soyut sanat deseni
+        let gradient = context.createLinearGradient(0, 0, width, height);
+        gradient.addColorStop(0, '#FF6B6B');
+        gradient.addColorStop(0.3, '#4ECDC4');
+        gradient.addColorStop(0.6, '#45B7D1');
+        gradient.addColorStop(1, '#96CEB4');
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, width, height);
+        
+        // Geometrik şekiller ekle
+        for (let i = 0; i < 8; i++) {
+            context.fillStyle = `hsl(${Math.random() * 360}, 70%, 60%)`;
+            context.fillRect(
+                Math.random() * width * 0.8,
+                Math.random() * height * 0.8,
+                50 + Math.random() * 100,
+                50 + Math.random() * 100
+            );
+        }
+        
+    } else if (paintingType === "landscape") {
+        // Manzara deseni
+        // Gökyüzü
+        let skyGradient = context.createLinearGradient(0, 0, 0, height/2);
+        skyGradient.addColorStop(0, '#87CEEB');
+        skyGradient.addColorStop(1, '#E0F6FF');
+        context.fillStyle = skyGradient;
+        context.fillRect(0, 0, width, height/2);
+        
+        // Dağlar
+        context.fillStyle = '#8B7355';
+        context.beginPath();
+        context.moveTo(0, height/2);
+        for (let x = 0; x < width; x += 20) {
+            context.lineTo(x, height/2 - Math.random() * 80);
+        }
+        context.lineTo(width, height/2);
+        context.fill();
+        
+        // Zemin
+        let groundGradient = context.createLinearGradient(0, height/2, 0, height);
+        groundGradient.addColorStop(0, '#90EE90');
+        groundGradient.addColorStop(1, '#228B22');
+        context.fillStyle = groundGradient;
+        context.fillRect(0, height/2, width, height/2);
+        
+    } else if (paintingType === "portrait") {
+        // Portre tarzı
+        let gradient = context.createRadialGradient(width/2, height/2, 0, width/2, height/2, width/2);
+        gradient.addColorStop(0, '#F4A460');
+        gradient.addColorStop(0.5, '#DEB887');
+        gradient.addColorStop(1, '#8B4513');
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, width, height);
+        
+        // Basit yüz şekli
+        context.fillStyle = '#FDBCB4';
+        context.beginPath();
+        context.ellipse(width/2, height/2, 80, 100, 0, 0, 2 * Math.PI);
+        context.fill();
+        
+    } else if (paintingType === "modern") {
+        // Modern art
+        context.fillStyle = '#2C3E50';
+        context.fillRect(0, 0, width, height);
+        
+        // Geometrik çizgiler
+        context.strokeStyle = '#E74C3C';
+        context.lineWidth = 8;
+        for (let i = 0; i < 6; i++) {
+            context.beginPath();
+            context.moveTo(Math.random() * width, Math.random() * height);
+            context.lineTo(Math.random() * width, Math.random() * height);
+            context.stroke();
+        }
+        
+        // Renkli daireler
+        for (let i = 0; i < 5; i++) {
+            context.fillStyle = `hsl(${Math.random() * 360}, 80%, 60%)`;
+            context.beginPath();
+            context.arc(
+                Math.random() * width,
+                Math.random() * height,
+                20 + Math.random() * 40,
+                0, 2 * Math.PI
+            );
+            context.fill();
+        }
+    }
+    
+    dynamicTexture.update();
+    material.diffuseTexture = dynamicTexture;
+    material.emissiveTexture = dynamicTexture;
+    material.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+}
+
+// Güzel tablolar ekleme
+addBeautifulPainting(
     -2.5,                // X pozisyonu - TV'nin soluna
     1.5,                 // Y pozisyonu - Duvar ortası
     roomDepth/2 - 0.08,  // Z pozisyonu - Ön duvara yakın
     0,                   // Rotasyon - Düz
-    1.0,                 // Genişlik
-    1.4,                 // Yükseklik
-    "textures/painting1.jpg", // Texture dosyası
+    1.2,                 // Genişlik
+    1.6,                 // Yükseklik
+    "abstract",          // Tablo türü
     "painting1"          // Çerçeve adı
 );
 
-// İkinci tablo - Yan duvara (yeşil renk)
-addPaintingToWall(
+addBeautifulPainting(
     roomWidth/2 - 0.08,  // X pozisyonu - Sağ duvar
-    1.4,                 // Y pozisyonu - Pencereden biraz aşağı
-    2.0,                 // Z pozisyonu - Duvarın ortasına doğru
-    Math.PI / 2,         // Rotasyon - 90 derece (sağ duvara bakar)
-    1.2,                 // Genişlik
-    0.9,                 // Yükseklik
-    "textures/painting2.jpg", // Texture dosyası 
+    1.4,                 // Y pozisyonu
+    2.0,                 // Z pozisyonu
+    Math.PI / 2,         // Rotasyon - 90 derece
+    1.4,                 // Genişlik
+    1.0,                 // Yükseklik
+    "landscape",         // Tablo türü
     "painting2"          // Çerçeve adı
 );
+
+// Bonus: Üçüncü tablo
+addBeautifulPainting(
+    -roomWidth/2 + 0.08, // Sol duvar
+    1.6,                 // Y pozisyonu
+    0,                   // Z pozisyonu
+    -Math.PI / 2,        // Rotasyon - -90 derece
+    1.0,                 // Genişlik
+    1.3,                 // Yükseklik
+    "modern",            // Tablo türü
+    "painting3"          // Çerçeve adı
+);
+
+// Gelişmiş bitki ekleme fonksiyonu
+function addRealisticPlant(positionX, positionZ, scale, plantType = "ficus") {
+    // Bitki grubu oluştur
+    let plantGroup = new BABYLON.TransformNode("plantGroup_" + Date.now(), scene);
+    
+    // Saksı için materyal - daha gerçekçi
+    let potMaterial = new BABYLON.StandardMaterial("potMaterial", scene);
+    potMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1);
+    potMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+    potMaterial.roughness = 0.8;
+    
+    // Saksı (daha güzel şekil)
+    let pot = BABYLON.MeshBuilder.CreateCylinder("pot", {
+        height: 0.6,
+        diameterTop: 0.8,
+        diameterBottom: 0.6,
+        tessellation: 16
+    }, scene);
+    pot.parent = plantGroup;
+    pot.position.y = 0.3;
+    pot.material = potMaterial;
+    
+    // Toprak için materyal
+    let soilMaterial = new BABYLON.StandardMaterial("soilMaterial", scene);
+    soilMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.2, 0.1);
+    
+    // Toprak yüzeyi
+    let soil = BABYLON.MeshBuilder.CreateCylinder("soil", {
+        height: 0.05,
+        diameter: 0.75,
+        tessellation: 16
+    }, scene);
+    soil.parent = plantGroup;
+    soil.position.y = 0.6;
+    soil.material = soilMaterial;
+    
+    // Bitki türüne göre farklı bitkiler oluştur
+    if (plantType === "ficus") {
+        createFicusPlant(plantGroup);
+    } else if (plantType === "palm") {
+        createPalmPlant(plantGroup);
+    } else if (plantType === "monstera") {
+        createMonsteraPlant(plantGroup);
+    }
+    
+    // Konumlandırma ve ölçeklendirme
+    plantGroup.position = new BABYLON.Vector3(positionX, 0, positionZ);
+    plantGroup.scaling = new BABYLON.Vector3(scale, scale, scale);
+    
+    // Gölge için ekle
+    if (shadowGenerator) {
+        shadowGenerator.addShadowCaster(pot);
+        shadowGenerator.addShadowCaster(soil);
+        pot.receiveShadows = true;
+        soil.receiveShadows = true;
+    }
+    
+    return plantGroup;
+}
+
+// Ficus bitkisi oluşturma
+function createFicusPlant(parentGroup) {
+    // Gövde materyali
+    let trunkMaterial = new BABYLON.StandardMaterial("trunkMaterial", scene);
+    trunkMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1);
+    
+    // Ana gövde
+    let trunk = BABYLON.MeshBuilder.CreateCylinder("trunk", {
+        height: 1.0,
+        diameterTop: 0.08,
+        diameterBottom: 0.12,
+        tessellation: 8
+    }, scene);
+    trunk.parent = parentGroup;
+    trunk.position.y = 1.1;
+    trunk.material = trunkMaterial;
+    
+    // Yaprak materyali
+    let leafMaterial = new BABYLON.StandardMaterial("leafMaterial", scene);
+    leafMaterial.diffuseColor = new BABYLON.Color3(0.1, 0.6, 0.1);
+    leafMaterial.specularColor = new BABYLON.Color3(0.05, 0.1, 0.05);
+    leafMaterial.backFaceCulling = false; // İki taraflı görünüm
+    
+    // Yapraklar için farklı dallar
+    for (let i = 0; i < 8; i++) {
+        let angle = (i / 8) * Math.PI * 2;
+        let height = 1.4 + Math.random() * 0.4;
+        let distance = 0.3 + Math.random() * 0.2;
+        
+        // Dal
+        let branch = BABYLON.MeshBuilder.CreateCylinder("branch", {
+            height: 0.3,
+            diameter: 0.03,
+            tessellation: 6
+        }, scene);
+        branch.parent = parentGroup;
+        branch.position = new BABYLON.Vector3(
+            Math.cos(angle) * distance,
+            height,
+            Math.sin(angle) * distance
+        );
+        branch.rotation.z = Math.PI / 6;
+        branch.material = trunkMaterial;
+        
+        // Yaprak kümeleri
+        for (let j = 0; j < 3; j++) {
+            let leaf = BABYLON.MeshBuilder.CreateSphere("leaf", {
+                diameterX: 0.4 + Math.random() * 0.2,
+                diameterY: 0.5 + Math.random() * 0.2,
+                diameterZ: 0.1,
+                segments: 8
+            }, scene);
+            leaf.parent = parentGroup;
+            leaf.position = new BABYLON.Vector3(
+                Math.cos(angle) * (distance + 0.2),
+                height + j * 0.1,
+                Math.sin(angle) * (distance + 0.2)
+            );
+            leaf.rotation.y = angle + Math.random() * 0.5;
+            leaf.material = leafMaterial;
+            
+            if (shadowGenerator) {
+                shadowGenerator.addShadowCaster(leaf);
+                leaf.receiveShadows = true;
+            }
+        }
+        
+        if (shadowGenerator) {
+            shadowGenerator.addShadowCaster(branch);
+            branch.receiveShadows = true;
+        }
+    }
+    
+    if (shadowGenerator) {
+        shadowGenerator.addShadowCaster(trunk);
+        trunk.receiveShadows = true;
+    }
+}
+
+// Palmiye bitkisi oluşturma
+function createPalmPlant(parentGroup) {
+    let trunkMaterial = new BABYLON.StandardMaterial("palmTrunkMaterial", scene);
+    trunkMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.3, 0.1);
+    
+    // Palmiye gövdesi
+    let trunk = BABYLON.MeshBuilder.CreateCylinder("palmTrunk", {
+        height: 1.5,
+        diameterTop: 0.1,
+        diameterBottom: 0.15,
+        tessellation: 12
+    }, scene);
+    trunk.parent = parentGroup;
+    trunk.position.y = 1.35;
+    trunk.material = trunkMaterial;
+    
+    // Palmiye yaprağı materyali
+    let palmLeafMaterial = new BABYLON.StandardMaterial("palmLeafMaterial", scene);
+    palmLeafMaterial.diffuseColor = new BABYLON.Color3(0.0, 0.7, 0.0);
+    palmLeafMaterial.backFaceCulling = false;
+    
+    // Palmiye yaprakları
+    for (let i = 0; i < 6; i++) {
+        let angle = (i / 6) * Math.PI * 2;
+        
+        // Yaprak sapı
+        let stem = BABYLON.MeshBuilder.CreateCylinder("palmStem", {
+            height: 1.2,
+            diameter: 0.02,
+            tessellation: 6
+        }, scene);
+        stem.parent = parentGroup;
+        stem.position = new BABYLON.Vector3(0, 2.1, 0);
+        stem.rotation.x = Math.PI / 4;
+        stem.rotation.y = angle;
+        stem.material = trunkMaterial;
+        
+        // Yaprak parçaları
+        for (let j = 0; j < 10; j++) {
+            let leaflet = BABYLON.MeshBuilder.CreateBox("palmLeaflet", {
+                width: 0.1,
+                height: 0.6,
+                depth: 0.02
+            }, scene);
+            leaflet.parent = parentGroup;
+            
+            let leafPos = j * 0.12;
+            leaflet.position = new BABYLON.Vector3(
+                Math.cos(angle) * leafPos,
+                2.1 + leafPos * 0.3,
+                Math.sin(angle) * leafPos
+            );
+            leaflet.rotation.y = angle;
+            leaflet.rotation.z = j * 0.1;
+            leaflet.material = palmLeafMaterial;
+            
+            if (shadowGenerator) {
+                shadowGenerator.addShadowCaster(leaflet);
+                leaflet.receiveShadows = true;
+            }
+        }
+        
+        if (shadowGenerator) {
+            shadowGenerator.addShadowCaster(stem);
+            stem.receiveShadows = true;
+        }
+    }
+    
+    if (shadowGenerator) {
+        shadowGenerator.addShadowCaster(trunk);
+        trunk.receiveShadows = true;
+    }
+}
+
+// Monstera bitkisi oluşturma
+function createMonsteraPlant(parentGroup) {
+    let leafMaterial = new BABYLON.StandardMaterial("monsteraLeafMaterial", scene);
+    leafMaterial.diffuseColor = new BABYLON.Color3(0.05, 0.5, 0.05);
+    leafMaterial.backFaceCulling = false;
+    
+    // Gövde
+    let stem = BABYLON.MeshBuilder.CreateCylinder("monsteraStem", {
+        height: 0.8,
+        diameter: 0.06,
+        tessellation: 8
+    }, scene);
+    stem.parent = parentGroup;
+    stem.position.y = 1.0;
+    stem.material = new BABYLON.StandardMaterial("stemMat", scene);
+    stem.material.diffuseColor = new BABYLON.Color3(0.2, 0.4, 0.1);
+    
+    // Büyük monstera yaprakları
+    for (let i = 0; i < 5; i++) {
+        let angle = (i / 5) * Math.PI * 2;
+        let height = 1.2 + i * 0.2;
+        
+        // Yaprak sapı
+        let petiole = BABYLON.MeshBuilder.CreateCylinder("petiole", {
+            height: 0.4,
+            diameter: 0.03,
+            tessellation: 6
+        }, scene);
+        petiole.parent = parentGroup;
+        petiole.position = new BABYLON.Vector3(
+            Math.cos(angle) * 0.2,
+            height,
+            Math.sin(angle) * 0.2
+        );
+        petiole.rotation.z = Math.PI / 3;
+        petiole.rotation.y = angle;
+        petiole.material = stem.material;
+        
+        // Büyük yaprak
+        let leaf = BABYLON.MeshBuilder.CreateSphere("monsteraLeaf", {
+            diameterX: 0.8,
+            diameterY: 1.0,
+            diameterZ: 0.05,
+            segments: 12
+        }, scene);
+        leaf.parent = parentGroup;
+        leaf.position = new BABYLON.Vector3(
+            Math.cos(angle) * 0.5,
+            height + 0.3,
+            Math.sin(angle) * 0.5
+        );
+        leaf.rotation.y = angle;
+        leaf.material = leafMaterial;
+        
+        if (shadowGenerator) {
+            shadowGenerator.addShadowCaster(petiole);
+            shadowGenerator.addShadowCaster(leaf);
+            petiole.receiveShadows = true;
+            leaf.receiveShadows = true;
+        }
+    }
+    
+    if (shadowGenerator) {
+        shadowGenerator.addShadowCaster(stem);
+        stem.receiveShadows = true;
+    }
+}
+
+// Farklı bitki türleri ile odayı dekore et
+addRealisticPlant(-4.5, -4.5, 0.8, "ficus");     // Sol ön köşe - Ficus
+addRealisticPlant(4.5, -4.5, 0.7, "palm");       // Sağ ön köşe - Palmiye
+addRealisticPlant(-4.5, 4.5, 0.9, "monstera");   // Sol arka köşe - Monstera
+addRealisticPlant(4.5, 4.5, 0.8, "ficus");       // Sağ arka köşe - Ficus
 
 }
     

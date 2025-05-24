@@ -769,87 +769,63 @@ addPaintingToWall(
                 newFurniture.scaling = new BABYLON.Vector3(0.5, 0.5, 0.5); // 50x büyütme!
                 break;
             case 'chair':
-    newFurniture.position = new BABYLON.Vector3(position.x, 0, position.z);
-    newFurniture.scaling = new BABYLON.Vector3(0.01, 0.01, 0.01);
+    console.log("Sandalye yerleştiriliyor...");
     
-    // Rotasyonu tamamen sıfırla
+    // Temel ayarlar
+    newFurniture.position = new BABYLON.Vector3(position.x, 0, position.z);
+    newFurniture.scaling = new BABYLON.Vector3(1, 1, 1);
+    
+    // Rotasyonu sıfırla
     newFurniture.rotationQuaternion = null;
-    newFurniture.rotation = BABYLON.Vector3.Zero();
+    newFurniture.rotation = new BABYLON.Vector3(0, 0, 0);
     
-    // Pivot noktasını merkeze al
+    console.log("Sandalye büyük boyutta yerleştirildi");
+    
+    // Pozisyon düzeltmesi - child mesh'lerden hesapla
     setTimeout(() => {
-        // Mesh'in tüm child'larını kontrol et
-        if (newFurniture.getChildMeshes) {
+        try {
             const childMeshes = newFurniture.getChildMeshes();
-            console.log("Sandalye child mesh sayısı:", childMeshes.length);
+            if (childMeshes.length > 0) {
+                // İlk child mesh'den bounding box al
+                const bbox = childMeshes[0].getBoundingInfo();
+                console.log("Child mesh bounding box bulundu");
+                
+                // Boyut kontrolü
+                const size = bbox.boundingBox.extendSizeWorld;
+                const height = size.y * 2;
+                
+                console.log("Sandalye yüksekliği:", height);
+                
+                // Eğer çok büyükse küçült
+                if (height > 3) {
+                    const targetHeight = 1.5;
+                    const scale = targetHeight / height;
+                    newFurniture.scaling = new BABYLON.Vector3(scale, scale, scale);
+                    console.log("Sandalye ölçeklendi:", scale);
+                }
+                
+                // Zemine oturt - child mesh'lerin en alt noktasını bul
+                setTimeout(() => {
+                    let minY = 0;
+                    childMeshes.forEach(mesh => {
+                        const meshBBox = mesh.getBoundingInfo();
+                        const meshMinY = meshBBox.boundingBox.minimumWorld.y;
+                        if (meshMinY < minY) minY = meshMinY;
+                    });
+                    
+                    newFurniture.position.y = -minY + 0.05; // Zeminin biraz üstüne
+                    console.log("Sandalye zemine oturtuldu, Y pozisyonu:", newFurniture.position.y);
+                }, 100);
+            }
             
-            // Her child mesh için rotasyonu düzelt
-            childMeshes.forEach(child => {
-                if (child.rotation) {
-                    child.rotation = BABYLON.Vector3.Zero();
-                }
-                if (child.rotationQuaternion) {
-                    child.rotationQuaternion = null;
-                }
-                console.log("Child mesh düzeltildi:", child.name);
-            });
+        } catch (error) {
+            console.error("Sandalye pozisyon hatası:", error);
+            // Fallback: Manuel pozisyon ayarı
+            newFurniture.position.y = 0.5; // Zemin üstü sabit yükseklik
+            console.log("Manuel pozisyon ayarlandı");
         }
-        
-        // Ana mesh'in pozisyonunu düzelt
-        const boundingInfo = newFurniture.getBoundingInfo();
-        const min = boundingInfo.minimum;
-        const max = boundingInfo.maximum;
-        
-        // Y pozisyonunu düzelt (yere oturt)
-        newFurniture.position.y = -min.y + 0.01;
-        
-        // X ve Z merkezini düzelt
-        const centerX = (min.x + max.x) / 2;
-        const centerZ = (min.z + max.z) / 2;
-        
-        newFurniture.position.x = position.x - centerX;
-        newFurniture.position.z = position.z - centerZ;
-        
-        console.log("Sandalye konumu düzeltildi:", newFurniture.position);
-    }, 200);
+    }, 300);
     break;
-// ÇÖZÜM 4: Debug için - Sandalyenin durumunu analiz et
-case 'chair':
-    // Model eklendikten hemen sonra:
-    newFurniture.position = new BABYLON.Vector3(position.x, 0, position.z);
-    newFurniture.scaling = new BABYLON.Vector3(1, 1, 1); // Önce scale'i sıfırla
-
-    setTimeout(() => {
-        // 1. Bounding box'u alın
-        const bbox = newFurniture.getBoundingInfo();
-        const size = bbox.boundingBox.extendSizeWorld.scale(2); // [min,max] mesafesi
-        const maxDim = Math.max(size.x, size.y, size.z);
-
-        // 2. Hedef boyut (ör: yükseklik veya genişlik ~1 birim)
-        const target = 1; // ör: 1 birim ~ 1 metre
-        let scale = 1;
-        if (maxDim > 0.000001) {
-            scale = target / maxDim;
-        }
-
-        // 3. Otomatik ölçek uygula
-        newFurniture.scaling = new BABYLON.Vector3(scale, scale, scale);
-
-        // 4. Tekrar bbox al, zemine oturt
-        setTimeout(() => {
-            const bbox2 = newFurniture.getBoundingInfo();
-            const minY = bbox2.boundingBox.minimumWorld.y;
-            // Sandalyenin altı tam zemine gelsin
-            newFurniture.position.y = newFurniture.position.y - minY;
-
-            // Debug
-            console.log("Chair scaled to:", scale, "New position.y:", newFurniture.position.y);
-        }, 50);
-
-    }, 100);
-    break;
-
-// placeFurniture fonksiyonundaki lamba case'ini bu kodla değiştirin:
 
 case 'lamp':
     console.log("Lamba tavana sabitleniyor...");

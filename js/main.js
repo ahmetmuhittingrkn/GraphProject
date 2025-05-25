@@ -472,250 +472,122 @@ tvStand.material = tvFrameMaterial;
 // TV'yi pencereyle aynı yere konumlandır
 tvGroup.position = new BABYLON.Vector3(0, 1.5, roomDepth/2 - 0.05);
 
-// Gelişmiş tablo ekleme fonksiyonu
-function addBeautifulPainting(positionX, positionY, positionZ, rotationY, width, height, paintingType, frameName) {
-    console.log(`Tablo oluşturuluyor: ${frameName}, tip: ${paintingType}`);
+// Geliştirilmiş duvar rafı (daha stabil görünüm için)
+function addSimpleShelf(positionX, positionY, positionZ, rotationY, width) {
+    // Ana grup
+    let shelfGroup = new BABYLON.TransformNode("simpleShelf_" + Date.now(), scene);
     
-    // Tablo grubu oluştur
-    let paintingGroup = new BABYLON.TransformNode(frameName + "_group", scene);
+    // Ahşap materyal - doku ile
+    let woodMaterial = new BABYLON.StandardMaterial("woodMat", scene);
+    woodMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1); // Koyu ahşap
+    woodMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1); // Az parlak
     
-    // Çerçeve materyal - daha güzel ahşap görünüm
-    let frameMaterial = new BABYLON.StandardMaterial(frameName + "_frame_material", scene);
-    frameMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.15, 0.05); // Koyu ahşap
-    frameMaterial.specularColor = new BABYLON.Color3(0.1, 0.05, 0.02);
-    frameMaterial.roughness = 0.8;
-    
-    // Resim materyali
-    let paintingMaterial = new BABYLON.StandardMaterial(frameName + "_material", scene);
-    
-    // Farklı tablo türleri
-    if (paintingType === "abstract") {
-        // Soyut sanat - vibrant renkler
-        paintingMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.2, 0.4);
-        paintingMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.05, 0.1);
-    } else if (paintingType === "landscape") {
-        // Manzara - doğa renkleri
-        paintingMaterial.diffuseColor = new BABYLON.Color3(0.2, 0.6, 0.3);
-        paintingMaterial.emissiveColor = new BABYLON.Color3(0.05, 0.1, 0.05);
-    } else if (paintingType === "portrait") {
-        // Portre - sıcak tonlar
-        paintingMaterial.diffuseColor = new BABYLON.Color3(0.7, 0.5, 0.3);
-        paintingMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.08, 0.05);
-    } else if (paintingType === "modern") {
-        // Modern art - cool tonlar
-        paintingMaterial.diffuseColor = new BABYLON.Color3(0.2, 0.4, 0.8);
-        paintingMaterial.emissiveColor = new BABYLON.Color3(0.05, 0.08, 0.15);
-    }
-    
-    // Texture yüklemeyi dene
-    let texturePath = `textures/${frameName}.jpg`;
-    try {
-        console.log(`${frameName} için texture yükleme denemesi: ${texturePath}`);
-        let texture = new BABYLON.Texture(texturePath, scene, true, false);
-        texture.onLoadObservable.add(() => {
-            console.log(`${frameName} texture başarıyla yüklendi!`);
-            paintingMaterial.diffuseTexture = texture;
-        });
-        texture.onErrorObservable.add(() => {
-            console.log(`${frameName} texture yüklenemedi, prosedürel pattern kullanılıyor`);
-            createProceduralPainting(paintingMaterial, paintingType, frameName);
-        });
-    } catch (e) {
-        console.log(`${frameName} texture yüklenemedi, prosedürel pattern oluşturuluyor:`, e);
-        createProceduralPainting(paintingMaterial, paintingType, frameName);
-    }
-    
-    // Dış çerçeve (kalın)
-    let outerFrame = BABYLON.MeshBuilder.CreateBox(frameName + "_outer_frame", {
-        width: width + 0.4,
-        height: height + 0.4,
-        depth: 0.12
-    }, scene);
-    outerFrame.parent = paintingGroup;
-    outerFrame.material = frameMaterial;
-    
-    // İç çerçeve (ince)
-    let innerFrame = BABYLON.MeshBuilder.CreateBox(frameName + "_inner_frame", {
-        width: width + 0.1,
-        height: height + 0.1,
-        depth: 0.06
-    }, scene);
-    innerFrame.parent = paintingGroup;
-    innerFrame.position.z = 0.03;
-    let innerFrameMaterial = new BABYLON.StandardMaterial(frameName + "_inner_frame_material", scene);
-    innerFrameMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.7, 0.5); // Altın rengi
-    innerFrameMaterial.specularColor = new BABYLON.Color3(0.9, 0.8, 0.6);
-    innerFrame.material = innerFrameMaterial;
-    
-    // Resim içeriği
-    let painting = BABYLON.MeshBuilder.CreateBox(frameName + "_painting", {
+    // Ana raf - düz bir kutu, daha kalın
+    let shelf = BABYLON.MeshBuilder.CreateBox("shelfBody", {
         width: width,
-        height: height,
-        depth: 0.02
+        height: 0.15,  // Daha kalın raf
+        depth: 0.3     // Sabit derinlik
     }, scene);
-    painting.parent = paintingGroup;
-    painting.position.z = 0.08;
-    painting.material = paintingMaterial;
+    shelf.parent = shelfGroup;
+    shelf.material = woodMaterial;
     
-    // Konumlandırma
-    paintingGroup.position = new BABYLON.Vector3(positionX, positionY, positionZ);
-    paintingGroup.rotation.y = rotationY;
+    // Dekoratif nesne 1 (küp - kitap)
+    let book = BABYLON.MeshBuilder.CreateBox("book", {
+        width: 0.2,
+        height: 0.25,
+        depth: 0.15
+    }, scene);
+    book.parent = shelfGroup;
+    book.position.y = 0.2;  // Rafın üstünde
+    book.position.x = -width/3;  // Sol tarafa yakın
     
-    // Gölge ekleme
+    let bookMaterial = new BABYLON.StandardMaterial("bookMat", scene);
+    bookMaterial.diffuseColor = new BABYLON.Color3(0.1, 0.2, 0.7); // Mavi
+    book.material = bookMaterial;
+    
+    // Dekoratif nesne 2 (silindir - vazo)
+    let vase = BABYLON.MeshBuilder.CreateCylinder("vase", {
+        height: 0.3,
+        diameter: 0.1,
+        tessellation: 16
+    }, scene);
+    vase.parent = shelfGroup;
+    vase.position.y = 0.225;  // Rafın üstünde
+    vase.position.x = width/3;  // Sağ tarafa yakın
+    
+    let vaseMaterial = new BABYLON.StandardMaterial("vaseMat", scene);
+    vaseMaterial.diffuseColor = new BABYLON.Color3(0.7, 0.1, 0.1); // Kırmızı
+    vase.material = vaseMaterial;
+    
+    // Konumlandır
+    shelfGroup.position = new BABYLON.Vector3(positionX, positionY, positionZ);
+    shelfGroup.rotation.y = rotationY;
+    
+    // Gölge ekle
     if (shadowGenerator) {
-        shadowGenerator.addShadowCaster(outerFrame);
-        shadowGenerator.addShadowCaster(innerFrame);
-        shadowGenerator.addShadowCaster(painting);
-        outerFrame.receiveShadows = true;
-        innerFrame.receiveShadows = true;
-        painting.receiveShadows = true;
+        shadowGenerator.addShadowCaster(shelf);
+        shadowGenerator.addShadowCaster(book);
+        shadowGenerator.addShadowCaster(vase);
+        shelf.receiveShadows = true;
     }
     
-    console.log(`Tablo başarıyla eklendi: ${frameName}`);
-    return paintingGroup;
+    return shelfGroup;
 }
 
-// Prosedürel tablo deseni oluşturma
-function createProceduralPainting(material, paintingType, frameName) {
-    // Dynamic texture oluştur
-    let dynamicTexture = new BABYLON.DynamicTexture(frameName + "_dynamic", {width: 512, height: 512}, scene);
-    let context = dynamicTexture.getContext();
-    
-    // Canvas boyutları
-    let width = 512;
-    let height = 512;
-    
-    if (paintingType === "abstract") {
-        // Soyut sanat deseni
-        let gradient = context.createLinearGradient(0, 0, width, height);
-        gradient.addColorStop(0, '#FF6B6B');
-        gradient.addColorStop(0.3, '#4ECDC4');
-        gradient.addColorStop(0.6, '#45B7D1');
-        gradient.addColorStop(1, '#96CEB4');
-        context.fillStyle = gradient;
-        context.fillRect(0, 0, width, height);
-        
-        // Geometrik şekiller ekle
-        for (let i = 0; i < 8; i++) {
-            context.fillStyle = `hsl(${Math.random() * 360}, 70%, 60%)`;
-            context.fillRect(
-                Math.random() * width * 0.8,
-                Math.random() * height * 0.8,
-                50 + Math.random() * 100,
-                50 + Math.random() * 100
-            );
-        }
-        
-    } else if (paintingType === "landscape") {
-        // Manzara deseni
-        // Gökyüzü
-        let skyGradient = context.createLinearGradient(0, 0, 0, height/2);
-        skyGradient.addColorStop(0, '#87CEEB');
-        skyGradient.addColorStop(1, '#E0F6FF');
-        context.fillStyle = skyGradient;
-        context.fillRect(0, 0, width, height/2);
-        
-        // Dağlar
-        context.fillStyle = '#8B7355';
-        context.beginPath();
-        context.moveTo(0, height/2);
-        for (let x = 0; x < width; x += 20) {
-            context.lineTo(x, height/2 - Math.random() * 80);
-        }
-        context.lineTo(width, height/2);
-        context.fill();
-        
-        // Zemin
-        let groundGradient = context.createLinearGradient(0, height/2, 0, height);
-        groundGradient.addColorStop(0, '#90EE90');
-        groundGradient.addColorStop(1, '#228B22');
-        context.fillStyle = groundGradient;
-        context.fillRect(0, height/2, width, height/2);
-        
-    } else if (paintingType === "portrait") {
-        // Portre tarzı
-        let gradient = context.createRadialGradient(width/2, height/2, 0, width/2, height/2, width/2);
-        gradient.addColorStop(0, '#F4A460');
-        gradient.addColorStop(0.5, '#DEB887');
-        gradient.addColorStop(1, '#8B4513');
-        context.fillStyle = gradient;
-        context.fillRect(0, 0, width, height);
-        
-        // Basit yüz şekli
-        context.fillStyle = '#FDBCB4';
-        context.beginPath();
-        context.ellipse(width/2, height/2, 80, 100, 0, 0, 2 * Math.PI);
-        context.fill();
-        
-    } else if (paintingType === "modern") {
-        // Modern art
-        context.fillStyle = '#2C3E50';
-        context.fillRect(0, 0, width, height);
-        
-        // Geometrik çizgiler
-        context.strokeStyle = '#E74C3C';
-        context.lineWidth = 8;
-        for (let i = 0; i < 6; i++) {
-            context.beginPath();
-            context.moveTo(Math.random() * width, Math.random() * height);
-            context.lineTo(Math.random() * width, Math.random() * height);
-            context.stroke();
-        }
-        
-        // Renkli daireler
-        for (let i = 0; i < 5; i++) {
-            context.fillStyle = `hsl(${Math.random() * 360}, 80%, 60%)`;
-            context.beginPath();
-            context.arc(
-                Math.random() * width,
-                Math.random() * height,
-                20 + Math.random() * 40,
-                0, 2 * Math.PI
-            );
-            context.fill();
-        }
-    }
-    
-    dynamicTexture.update();
-    material.diffuseTexture = dynamicTexture;
-    material.emissiveTexture = dynamicTexture;
-    material.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.1);
-}
-
-// Güzel tablolar ekleme
-addBeautifulPainting(
-    -2.5,                // X pozisyonu - TV'nin soluna
-    1.5,                 // Y pozisyonu - Duvar ortası
-    roomDepth/2 - 0.08,  // Z pozisyonu - Ön duvara yakın
-    0,                   // Rotasyon - Düz
-    1.2,                 // Genişlik
-    1.6,                 // Yükseklik
-    "abstract",          // Tablo türü
-    "painting1"          // Çerçeve adı
+// Yeni rafları ekle - daha güvenli pozisyonlarda
+addSimpleShelf(
+    -2.5,                // X pozisyonu - sol duvar
+    1.5,                 // Y pozisyonu
+    roomDepth/2 - 0.2,   // Z pozisyonu - duvardan daha uzak (0.2 birim)
+    0,                   // Rotasyon
+    1.2                  // Genişlik
 );
 
-addBeautifulPainting(
-    roomWidth/2 - 0.08,  // X pozisyonu - Sağ duvar
+addSimpleShelf(
+    roomWidth/2 - 0.2,   // X pozisyonu - sağ duvar (0.2 birim mesafe)
     1.4,                 // Y pozisyonu
     2.0,                 // Z pozisyonu
     Math.PI / 2,         // Rotasyon - 90 derece
-    1.4,                 // Genişlik
-    1.0,                 // Yükseklik
-    "landscape",         // Tablo türü
-    "painting2"          // Çerçeve adı
+    1.2                  // Genişlik
 );
 
-// Bonus: Üçüncü tablo
-addBeautifulPainting(
-    -roomWidth/2 + 0.08, // Sol duvar
-    1.6,                 // Y pozisyonu
-    0,                   // Z pozisyonu
+// Üçüncü raf
+addSimpleShelf(
+    -roomWidth/2 + 0.2,  // X pozisyonu - sol duvar (0.2 birim mesafe)
+    1.6,                 // Y pozisyonu - yüksek
+    -1.0,                // Z pozisyonu
     -Math.PI / 2,        // Rotasyon - -90 derece
-    1.0,                 // Genişlik
-    1.3,                 // Yükseklik
-    "modern",            // Tablo türü
-    "painting3"          // Çerçeve adı
+    1.2                  // Genişlik
 );
+
+// Kamera pozisyon debug fonksiyonu
+function debugCameraPosition() {
+    if (typeof camera !== 'undefined' && camera) {
+        console.log(`📷 Kamera pozisyonu: x=${camera.position.x.toFixed(2)}, y=${camera.position.y.toFixed(2)}, z=${camera.position.z.toFixed(2)}`);
+        console.log(`📷 Kamera target: x=${camera.target.x.toFixed(2)}, y=${camera.target.y.toFixed(2)}, z=${camera.target.z.toFixed(2)}`);
+    }
+}
+
+// Sahne debug fonksiyonu
+function debugScene() {
+    console.log("🔍 SAHNE DEBUG BİLGİLERİ:");
+    console.log(`📦 Toplam mesh sayısı: ${scene.meshes.length}`);
+    console.log(`💡 Toplam ışık sayısı: ${scene.lights.length}`);
+    console.log(`🎭 Toplam materyal sayısı: ${scene.materials.length}`);
+    
+    // Tablo mesh'lerini ara
+    let paintingMeshes = scene.meshes.filter(mesh => mesh.name.includes('painting'));
+    console.log(`🖼️ Tablo mesh'leri: ${paintingMeshes.length} adet`);
+    paintingMeshes.forEach(mesh => {
+        console.log(`  - ${mesh.name}: visible=${mesh.isVisible}, position=(${mesh.position.x.toFixed(2)}, ${mesh.position.y.toFixed(2)}, ${mesh.position.z.toFixed(2)})`);
+    });
+    
+    debugCameraPosition();
+}
+
+// Bu fonksiyonu çağırarak debug yapın
+debugScene();
+
 
 // Gelişmiş bitki ekleme fonksiyonu
 function addRealisticPlant(positionX, positionZ, scale, plantType = "ficus") {

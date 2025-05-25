@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let highlightMesh = null;        // Seçili mobilyayı vurgulamak için mesh
     let placementMode = false;
     let furnitureModels = {};
-    let totalAssets = 8; // Yüklenecek toplam varlık sayısı
+    let totalAssets = 9; // Yüklenecek toplam varlık sayısı
     let loadedAssets = 0;
     let shadowGenerator;
     
@@ -1030,13 +1030,87 @@ addRealisticPlant(4.5, 4.5, 0.8, "ficus");       // Sağ arka köşe - Ficus
             console.error("Lamba yüklenirken hata:", message);
             assetLoaded(); // Hata durumunda da yükleme sayacını artır
         });
+
+        console.log("Yatak modeli yükleniyor: models/bed.glb");
+BABYLON.SceneLoader.ImportMesh("", "models/", "bed.glb", scene, function(newMeshes) {
+    console.log("Yatak modeli başarıyla yüklendi, mesh sayısı:", newMeshes.length);
+    
+    // Ana düğüm oluştur
+    let bed = new BABYLON.TransformNode("bedTemplate", scene);
+    
+    // İlk ölçek ayarı
+    bed.scaling = new BABYLON.Vector3(0.05, 0.05, 0.05);
+    
+    // Rotasyonu baştan sıfırla
+    bed.rotation = new BABYLON.Vector3(0, 0, 0);
+    bed.rotationQuaternion = null;
+    
+    // Tüm meshleri ana düğüme bağla ve MALZEME SORUNUNU ÇÖZ
+    newMeshes.forEach((mesh, index) => {
+        if (mesh.name !== "__root__") {
+            mesh.parent = bed;
+            mesh.receiveShadows = true;
+            
+            // Mesh'in kendi rotasyonunu da sıfırla
+            mesh.rotation = new BABYLON.Vector3(0, 0, 0);
+            mesh.rotationQuaternion = null;
+            
+            console.log(`Mesh ${index}: ${mesh.name}, Material: ${mesh.material ? mesh.material.name : 'YOK'}, Visible: ${mesh.isVisible}`);
+            
+            // *** ZORLA MALZEME ATAMA ***
+            // Her mesh için kesinlikle yeni malzeme oluştur
+            let bedMaterial;
+            
+            // Mesh ismine göre farklı renkler
+            if (mesh.name.toLowerCase().includes('mattress') || mesh.name.toLowerCase().includes('yatak')) {
+                // Yatak için beyaz/krem
+                bedMaterial = new BABYLON.StandardMaterial("mattressMaterial_" + index, scene);
+                bedMaterial.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.85);
+            } else if (mesh.name.toLowerCase().includes('frame') || mesh.name.toLowerCase().includes('wood')) {
+                // Çerçeve için kahverengi
+                bedMaterial = new BABYLON.StandardMaterial("frameMaterial_" + index, scene);
+                bedMaterial.diffuseColor = new BABYLON.Color3(0.6, 0.4, 0.2);
+            } else if (mesh.name.toLowerCase().includes('pillow') || mesh.name.toLowerCase().includes('yastik')) {
+                // Yastık için açık gri
+                bedMaterial = new BABYLON.StandardMaterial("pillowMaterial_" + index, scene);
+                bedMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.8);
+            } else {
+                // Diğerleri için varsayılan malzeme
+                bedMaterial = new BABYLON.StandardMaterial("bedMaterial_" + index, scene);
+                bedMaterial.diffuseColor = new BABYLON.Color3(0.7, 0.5, 0.3);
+            }
+            
+            // Malzeme ayarları
+            bedMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+            bedMaterial.alpha = 1.0;
+            bedMaterial.backFaceCulling = false; // Arkadan da görünsün
+            
+            // Malzemeyi ata
+            mesh.material = bedMaterial;
+            
+            // Mesh'i zorla görünür yap
+            mesh.isVisible = true;
+            mesh.setEnabled(true);
+            
+            console.log(`Mesh ${mesh.name} için yeni malzeme atandı: ${bedMaterial.name}`);
+        }
+    });
+    
+    bed.isVisible = false; // Template olarak sakla
+    furnitureModels.bed = bed;
+    console.log("Yatak modeli hazır: furnitureModels.bed");
+    
+}, null, function(scene, message) {
+    console.error("Yatak yüklenirken hata:", message);
+    assetLoaded();
+});
         
         // Fonksiyonun sonuna yükleme durumunu kontrol eden timeout ekle
         setTimeout(() => {
             console.log("--------- MODEL YÜKLEME DURUMU ---------");
             console.log("Yüklenen modeller:", Object.keys(furnitureModels).join(", "));
             
-            const expectedModels = ["sofa", "table", "chair", "lamp"];
+            const expectedModels = ["sofa", "table", "chair", "lamp","bed"];
             const missingModels = expectedModels.filter(model => !furnitureModels[model]);
             
             if (missingModels.length > 0) {
@@ -1203,6 +1277,199 @@ case 'lamp':
     
     console.log("Büyütülmüş lamba tavana sabitlendi ve hafifçe sallanıyor");
     break;
+
+   case 'bed':
+    console.log("Yatak yerleştiriliyor...");
+    
+    // Temel pozisyon ayarları
+    newFurniture.position = new BABYLON.Vector3(position.x, 0, position.z);
+    
+    // Rotasyonu tamamen temizle
+    newFurniture.rotationQuaternion = null;
+    newFurniture.rotation = new BABYLON.Vector3(0, 0, 0);
+    
+    // Başlangıç ölçeği
+    newFurniture.scaling = new BABYLON.Vector3(0.8, 0.8, 0.8);
+    
+    // *** GÖRÜNÜRLÜKTEKİ SORUNLARI ÇÖZME ***
+    newFurniture.isVisible = true;
+    newFurniture.setEnabled(true);
+    
+    // KLONLAMA TAMAMLANANA KADAR BEKLEYİP MESH'LERİ BULMAK İÇİN RETRY MEKANİZMASI
+    let retryCount = 0;
+    const maxRetries = 10;
+    
+    function findAndFixMeshes() {
+        const childMeshes = newFurniture.getChildMeshes();
+        console.log(`Retry ${retryCount}: Bulunan mesh sayısı: ${childMeshes.length}`);
+        
+        if (childMeshes.length === 0 && retryCount < maxRetries) {
+            retryCount++;
+            console.log(`Mesh'ler henüz hazır değil, ${retryCount}. deneme yapılıyor...`);
+            setTimeout(findAndFixMeshes, 50); // 50ms bekle ve tekrar dene
+            return;
+        }
+        
+        if (childMeshes.length === 0) {
+            console.error("UYARI: Hiçbir mesh bulunamadı! Template'te sorun olabilir.");
+            return;
+        }
+        
+        console.log(`${childMeshes.length} mesh bulundu, malzemeler atanıyor...`);
+        
+        // Mesh'leri kontrol et ve görünür yap
+        // Mesh'leri kontrol et ve görünür yap
+childMeshes.forEach((mesh, index) => {
+    mesh.isVisible = true;
+    mesh.setEnabled(true);
+    
+    console.log(`Mesh ${index}: ${mesh.name}, Material: ${mesh.material ? mesh.material.name || 'unnamed' : 'YOK'}`);
+    
+    // DÜZELTILMIŞ MALZEME ATAMA LOGİĞİ
+    let newMaterial;
+    const meshName = mesh.name.toLowerCase();
+    
+    // Daha spesifik kontroller
+    if (meshName.includes('pillow')) {
+        // Yastıklar için açık gri/beyaz
+        newMaterial = new BABYLON.StandardMaterial("runtimePillow_" + index, scene);
+        newMaterial.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.85); // Krem beyazı
+        console.log(`🛏️ Yastık tespit edildi: ${mesh.name}`);
+        
+    } else if (meshName.includes('blanket')) {
+        // Battaniye/yorgan için farklı renk
+        newMaterial = new BABYLON.StandardMaterial("runtimeBlanket_" + index, scene);
+        newMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.6, 0.8); // Mavi ton
+        console.log(`🛏️ Battaniye tespit edildi: ${mesh.name}`);
+        
+    } else if (meshName.includes('headboard')) {
+        // Başlık için koyu kahverengi
+        newMaterial = new BABYLON.StandardMaterial("runtimeHeadboard_" + index, scene);
+        newMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.2, 0.1); // Koyu kahverengi
+        console.log(`🛏️ Başlık tespit edildi: ${mesh.name}`);
+        
+    } else if (meshName.includes('main') && !meshName.includes('headboard')) {
+        // Ana yatak çerçevesi için orta ton kahverengi
+        newMaterial = new BABYLON.StandardMaterial("runtimeFrame_" + index, scene);
+        newMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.35, 0.2); // Orta kahverengi
+        console.log(`🛏️ Ana çerçeve tespit edildi: ${mesh.name}`);
+        
+    } else {
+        // Tanımlanamayan parçalar için farklı renkler
+        const colors = [
+            new BABYLON.Color3(0.8, 0.8, 0.75), // Açık krem (yatak için)
+            new BABYLON.Color3(0.6, 0.4, 0.25), // Kahverengi (ahşap için)
+            new BABYLON.Color3(0.2, 0.4, 0.6),  // Koyu mavi
+            new BABYLON.Color3(0.4, 0.2, 0.1),  // Koyu kahve
+            new BABYLON.Color3(0.7, 0.7, 0.7),  // Gri
+        ];
+        newMaterial = new BABYLON.StandardMaterial("runtimeOther_" + index, scene);
+        newMaterial.diffuseColor = colors[index % colors.length];
+        console.log(`🛏️ Diğer parça tespit edildi: ${mesh.name}`);
+    }
+    
+    // Malzeme ayarları
+    newMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+    newMaterial.alpha = 1.0;
+    newMaterial.backFaceCulling = false;
+    
+    // Eski malzemeyi kaldır
+    if (mesh.material) {
+        mesh.material.dispose();
+    }
+    
+    mesh.material = newMaterial;
+    console.log(`✅ ${mesh.name} -> ${newMaterial.name} (${newMaterial.diffuseColor.r.toFixed(2)}, ${newMaterial.diffuseColor.g.toFixed(2)}, ${newMaterial.diffuseColor.b.toFixed(2)})`);
+});
+
+console.log("✓ Yatak temel ayarlarla yerleştirildi, toplam mesh sayısı:", childMeshes.length);
+    }
+    
+    // İlk denemeyi başlat
+    findAndFixMeshes();
+    
+    // Detaylı boyut ve pozisyon ayarlaması
+    setTimeout(() => {
+        try {
+            console.log("Yatak fine-tuning başlıyor...");
+            
+            // Bounding box hesapla
+            newFurniture.computeWorldMatrix(true);
+            const boundingInfo = newFurniture.getHierarchyBoundingVectors(true);
+            const size = boundingInfo.max.subtract(boundingInfo.min);
+            
+            console.log(`Mevcut yatak boyutları: ${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}`);
+            
+            // Hedef boyutlar
+            const TARGET_WIDTH = 1.8;
+            const TARGET_LENGTH = 2.0;
+            const TARGET_HEIGHT = 0.5;
+            
+            // Ölçek hesaplama
+            let scaleX = TARGET_WIDTH / size.x;
+            let scaleY = TARGET_HEIGHT / size.y;
+            let scaleZ = TARGET_LENGTH / size.z;
+            
+            const uniformScale = Math.min(scaleX, scaleY, scaleZ);
+            const finalScale = Math.max(uniformScale, 0.5);
+            
+            console.log(`Final uniform scale: ${finalScale.toFixed(3)}`);
+            
+            // Yeni ölçeği uygula
+            newFurniture.scaling = new BABYLON.Vector3(finalScale, finalScale, finalScale);
+            
+            // Zemine oturtma işlemi
+            setTimeout(() => {
+                newFurniture.computeWorldMatrix(true);
+                const newBoundingInfo = newFurniture.getHierarchyBoundingVectors(true);
+                const minY = newBoundingInfo.min.y;
+                newFurniture.position.y = -minY + 0.05;
+                
+                console.log(`Yatak zemine oturtuldu. Y pos: ${newFurniture.position.y.toFixed(3)}`);
+                
+                // SON GÖRÜNÜRLÜK KONTROLÜ
+                console.log("Son görünürlük kontrolü yapılıyor...");
+                newFurniture.getChildMeshes().forEach(mesh => {
+                    if (!mesh.isVisible) {
+                        mesh.isVisible = true;
+                        console.log(`${mesh.name} görünür hale getirildi`);
+                    }
+                });
+                
+                // Çok büyükse emergency scaling
+                const finalSize = newBoundingInfo.max.subtract(newBoundingInfo.min);
+                if (finalSize.x > 3 || finalSize.z > 3) {
+                    console.log("Emergency scaling uygulanıyor...");
+                    newFurniture.scaling = new BABYLON.Vector3(0.4, 0.4, 0.4);
+                    
+                    setTimeout(() => {
+                        newFurniture.computeWorldMatrix(true);
+                        const emergencyBounding = newFurniture.getHierarchyBoundingVectors(true);
+                        newFurniture.position.y = -emergencyBounding.min.y + 0.05;
+                    }, 100);
+                }
+                
+            }, 200);
+            
+        } catch (error) {
+            console.error("Yatak optimizasyon hatası:", error);
+            
+            // Güvenli fallback
+            newFurniture.scaling = new BABYLON.Vector3(0.4, 0.4, 0.4);
+            newFurniture.rotation = new BABYLON.Vector3(0, 0, 0);
+            newFurniture.position.y = 0.1;
+            
+            // Fallback durumunda da görünürlüğü garanti et
+            newFurniture.isVisible = true;
+            newFurniture.getChildMeshes().forEach(mesh => {
+                mesh.isVisible = true;
+                mesh.setEnabled(true);
+            });
+        }
+    }, 300);
+    
+    break;
+
         }
         
         console.log(`${selectedFurnitureType} yerleştiriliyor:`, 
@@ -1236,6 +1503,9 @@ case 'lamp':
                 material.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.2); // Sarımsı
                 material.emissiveColor = new BABYLON.Color3(0.2, 0.2, 0); // Işık efekti
                 break;
+             case 'bed':
+            material.diffuseColor = new BABYLON.Color3(0.6, 0.1, 0.1); // Koyu kırmızı
+            break;   
         }
         
         // Her bir alt mesh'i klonla ve görünür hale getir
@@ -1314,9 +1584,11 @@ function selectFurnitureObject(pickInfo) {
         
         // Mobilya türünü kontrol et (adından)
         if (parentNode && (parentNode.name.includes("sofa") || 
-                           parentNode.name.includes("table") || 
-                           parentNode.name.includes("chair") || 
-                           parentNode.name.includes("lamp"))) {
+                   parentNode.name.includes("table") || 
+                   parentNode.name.includes("chair") || 
+                   parentNode.name.includes("lamp") ||
+                   parentNode.name.includes("bed")))                  
+                        {
             selectedFurniture = parentNode;
             
             // Seçimi görsel olarak vurgula
@@ -1589,6 +1861,16 @@ function setupInteractions() {
             console.log("Lamba butonu tıklandı");
             selectFurnitureType('lamp');
         });
+
+        document.getElementById('bed-btn').addEventListener('click', function() {
+    console.log("Yatak butonu DOM'da bulundu ve tıklandı");
+    selectFurnitureType('bed');
+    
+    // Manuel olarak da kontrol et:
+    this.classList.add('selected');
+    console.log("Manuel selected class eklendi");
+});
+
     }
     
     // Sahneyi oluştur ve başlat

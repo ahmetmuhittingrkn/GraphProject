@@ -1,49 +1,40 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Yükleme ekranını göster
     const loadingElement = document.getElementById('loading');
     const loadingProgressElement = document.getElementById('loading-progress');
     
-    // Canvas ve engine ayarları
     const canvas = document.getElementById('renderCanvas');
     const engine = new BABYLON.Engine(canvas, true);
     
-    // Global değişkenler
     let scene, camera, light, ambientLight;
     let ground, walls = [];
-    let selectedFurnitureType = null; // Seçilen mobilya tipi (sofa, chair, table, lamp)
-    let selectedFurniture = null;     // Seçilen mobilya nesnesi (TransformNode)
-    let highlightMesh = null;        // Seçili mobilyayı vurgulamak için mesh
+    let selectedFurnitureType = null;
+    let selectedFurniture = null;
+    let highlightMesh = null;
     let placementMode = false;
     let furnitureModels = {};
-    let totalAssets = 9; // Yüklenecek toplam varlık sayısı
+    let totalAssets = 9;
     let loadedAssets = 0;
     let shadowGenerator;
     
-    // Yükleme zaman aşımı kontrolü
     let loadingTimeout = setTimeout(() => {
         console.warn("Yükleme zaman aşımına uğradı, uygulama başlatılıyor.");
         loadingElement.style.display = 'none';
-    }, 15000); // 15 saniye sonra zorunlu yükleme bitirme
+    }, 15000);
     
-    // Sahne oluşturma fonksiyonu
     const createScene = function() {
-        // Yeni sahne oluştur
         const newScene = new BABYLON.Scene(engine);
         newScene.clearColor = new BABYLON.Color3(0.9, 0.9, 0.9);
         
-        // Kamera oluştur
-        camera = new BABYLON.FreeCamera('camera', new BABYLON.Vector3(-3, 4, -3), newScene); // Odanın içinde köşe pozisyonu
-        camera.setTarget(new BABYLON.Vector3(1, 0, 1)); // Odanın merkezine yakın bir yer
+        camera = new BABYLON.FreeCamera('camera', new BABYLON.Vector3(-3, 4, -3), newScene);
+        camera.setTarget(new BABYLON.Vector3(1, 0, 1));
         camera.attachControl(canvas, true);
         camera.speed = 0.2;
         camera.angularSensibility = 4000;
         
-        // Yerçekimi ve çarpışma kontrolü
         camera.applyGravity = true;
         camera.ellipsoid = new BABYLON.Vector3(0.5, 0.9, 0.5);
         camera.checkCollisions = true;
         
-        // Işık kaynakları
         light = new BABYLON.PointLight('mainLight', new BABYLON.Vector3(0, 3, 0), newScene);
         light.intensity = 1.0;
         light.diffuse = new BABYLON.Color3(1, 0.95, 0.85);
@@ -53,7 +44,6 @@ document.addEventListener('DOMContentLoaded', function() {
         ambientLight.intensity = 0.5;
         ambientLight.diffuse = new BABYLON.Color3(0.8, 0.8, 0.8);
         
-        // Zemin oluştur
         ground = BABYLON.MeshBuilder.CreateGround('ground', {width: 10, height: 10}, newScene);
         let groundMaterial = new BABYLON.StandardMaterial('groundMat', newScene);
         groundMaterial.diffuseTexture = new BABYLON.Texture('textures/floor.jpg', newScene, false, false, null, assetLoaded);
@@ -64,7 +54,6 @@ document.addEventListener('DOMContentLoaded', function() {
         ground.checkCollisions = true;
         ground.receiveShadows = true;
         
-        // Işık ve gölge ayarları
         shadowGenerator = new BABYLON.ShadowGenerator(1024, light);
         shadowGenerator.useBlurExponentialShadowMap = true;
         shadowGenerator.blurKernel = 32;
@@ -73,22 +62,17 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     function createWalls() {
-    // İki taraflı duvar materyali oluştur
     let wallMaterial = new BABYLON.StandardMaterial('wallMat', scene);
     wallMaterial.diffuseTexture = new BABYLON.Texture('textures/wall.jpg', scene, false, false, null, assetLoaded);
     wallMaterial.diffuseTexture.uScale = 2;
     wallMaterial.diffuseTexture.vScale = 1;
     wallMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
-    wallMaterial.backFaceCulling = false; // Çift taraflı görüntüleme için
+    wallMaterial.backFaceCulling = false;
     
-    // Duvarlar için boyutlar
     const roomWidth = 10; 
     const roomDepth = 10;
-    const roomHeight = 5; // Yüksekliği 3'ten 5'e çıkardık
+    const roomHeight = 5;
     
-    // Duvarları mesh kullanarak oluşturalım (düzlemler yerine kutular)
-    
-    // Arka duvar
     let backWall = BABYLON.MeshBuilder.CreateBox('backWall', {
         width: roomWidth,
         height: roomHeight,
@@ -99,7 +83,6 @@ document.addEventListener('DOMContentLoaded', function() {
     backWall.checkCollisions = true;
     walls.push(backWall);
     
-    // Sol duvar
     let leftWall = BABYLON.MeshBuilder.CreateBox('leftWall', {
         width: 0.1,
         height: roomHeight,
@@ -110,7 +93,6 @@ document.addEventListener('DOMContentLoaded', function() {
     leftWall.checkCollisions = true;
     walls.push(leftWall);
     
-    // Sağ duvar
     let rightWall = BABYLON.MeshBuilder.CreateBox('rightWall', {
         width: 0.1,
         height: roomHeight,
@@ -121,10 +103,8 @@ document.addEventListener('DOMContentLoaded', function() {
     rightWall.checkCollisions = true;
     walls.push(rightWall);
     
-    // Ön duvar (kapılı)
-    // Önce sol taraf
     let frontWallLeft = BABYLON.MeshBuilder.CreateBox('frontWallLeft', {
-        width: roomWidth/2 - 1, // Kapı genişliğinin yarısı kadar eksilttik
+        width: roomWidth/2 - 1,
         height: roomHeight,
         depth: 0.1
     }, scene);
@@ -133,9 +113,8 @@ document.addEventListener('DOMContentLoaded', function() {
     frontWallLeft.checkCollisions = true;
     walls.push(frontWallLeft);
     
-    // Ön duvar sağ taraf
     let frontWallRight = BABYLON.MeshBuilder.CreateBox('frontWallRight', {
-        width: roomWidth/2 - 1, // Kapı genişliğinin yarısı kadar eksilttik
+        width: roomWidth/2 - 1,
         height: roomHeight,
         depth: 0.1
     }, scene);
@@ -144,10 +123,9 @@ document.addEventListener('DOMContentLoaded', function() {
     frontWallRight.checkCollisions = true;
     walls.push(frontWallRight);
     
-    // Kapı üstü
     let doorTop = BABYLON.MeshBuilder.CreateBox('doorTop', {
         width: 2,
-        height: roomHeight - 2.5, // Kapı yüksekliği
+        height: roomHeight - 2.5,
         depth: 0.1
     }, scene);
     doorTop.position = new BABYLON.Vector3(0, roomHeight - (roomHeight - 2.5)/2, -roomDepth/2);
@@ -155,7 +133,6 @@ document.addEventListener('DOMContentLoaded', function() {
     doorTop.checkCollisions = true;
     walls.push(doorTop);
     
-    // Tavan
     let ceiling = BABYLON.MeshBuilder.CreateBox('ceiling', {
         width: roomWidth,
         height: 0.1,
@@ -164,7 +141,7 @@ document.addEventListener('DOMContentLoaded', function() {
     ceiling.position = new BABYLON.Vector3(0, roomHeight, 0);
     
     let ceilingMaterial = new BABYLON.StandardMaterial('ceilingMat', scene);
-    ceilingMaterial.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.9); // Açık renk
+    ceilingMaterial.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.9);
     ceilingMaterial.backFaceCulling = false;
     ceiling.material = ceilingMaterial;
     walls.push(ceiling);
@@ -172,116 +149,100 @@ document.addEventListener('DOMContentLoaded', function() {
     let tvGroup = new BABYLON.TransformNode("tvGroup", scene);
 
 
-    // Kapı eklemek için fonksiyon - createWalls() fonksiyonu içine ekleyin
-function addDoor() {
-    // Kapı grubu oluştur
-    let doorGroup = new BABYLON.TransformNode("doorGroup", scene);
-    
-    // Kapı materyal
-    let doorMaterial = new BABYLON.StandardMaterial("doorMaterial", scene);
-    doorMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1); // Koyu ahşap rengi
-    
-    // Kapı kolu materyali
-    let handleMaterial = new BABYLON.StandardMaterial("handleMaterial", scene);
-    handleMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.1); // Altın/pirinç rengi
-    
-    // Kapı çerçevesi materyali
-    let frameMaterial = new BABYLON.StandardMaterial("frameMaterial", scene);
-    frameMaterial.diffuseColor = new BABYLON.Color3(0.35, 0.18, 0.08); // Koyu ahşap çerçeve
-    
-    // Ana kapı paneli
-    let door = BABYLON.MeshBuilder.CreateBox("doorPanel", {
-        width: 1.8,
-        height: 2.4,
-        depth: 0.08
-    }, scene);
-    door.parent = doorGroup;
-    door.material = doorMaterial;
-    
-    // Kapı çerçevesi - üst kısım
-    let topFrame = BABYLON.MeshBuilder.CreateBox("topFrame", {
-        width: 2.2,
-        height: 0.12,
-        depth: 0.12
-    }, scene);
-    topFrame.parent = doorGroup;
-    topFrame.position.y = 1.26; // Kapı yüksekliğinin yarısı + çerçeve kalınlığının yarısı
-    topFrame.material = frameMaterial;
-    
-    // Sol çerçeve
-    let leftFrame = BABYLON.MeshBuilder.CreateBox("leftFrame", {
-        width: 0.12,
-        height: 2.64, // Kapı yüksekliği + üst çerçeve yüksekliği
-        depth: 0.12
-    }, scene);
-    leftFrame.parent = doorGroup;
-    leftFrame.position.x = -1.04; // Kapı genişliğinin yarısı + çerçeve genişliğinin yarısı
-    leftFrame.material = frameMaterial;
-    
-    // Sağ çerçeve
-    let rightFrame = BABYLON.MeshBuilder.CreateBox("rightFrame", {
-        width: 0.12,
-        height: 2.64,
-        depth: 0.12
-    }, scene);
-    rightFrame.parent = doorGroup;
-    rightFrame.position.x = 1.04; // Kapı genişliğinin yarısı + çerçeve genişliğinin yarısı
-    rightFrame.material = frameMaterial;
-    
-    // Kapı kolu
-    let doorHandle = BABYLON.MeshBuilder.CreateCylinder("doorHandle", {
-        height: 0.04,
-        diameter: 0.08,
-        tessellation: 16
-    }, scene);
-    doorHandle.parent = doorGroup;
-    doorHandle.rotation.x = Math.PI/2;
-    doorHandle.position = new BABYLON.Vector3(0.7, 0, 0.08); // Kapının sağ tarafına
-    doorHandle.material = handleMaterial;
-    
-    // Kapı topuzu/kolu bağlantısı
-    let handleConnector = BABYLON.MeshBuilder.CreateBox("handleConnector", {
-        width: 0.04,
-        height: 0.04,
-        depth: 0.06
-    }, scene);
-    handleConnector.parent = doorGroup;
-    handleConnector.position = new BABYLON.Vector3(0.7, 0, 0.04);
-    handleConnector.material = handleMaterial;
-    
-    // Kapıyı konumlandır - giriş boşluğunun ortasında
-    doorGroup.position = new BABYLON.Vector3(0, 1.2, -roomDepth/2 + 0.05); // Zemin seviyesinden biraz yukarı
-    
-    console.log("Giriş kapısı eklendi");
-    
-    return doorGroup;
-}
+    function addDoor() {
+        let doorGroup = new BABYLON.TransformNode("doorGroup", scene);
+        
+        let doorMaterial = new BABYLON.StandardMaterial("doorMaterial", scene);
+        doorMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1);
+        
+        let handleMaterial = new BABYLON.StandardMaterial("handleMaterial", scene);
+        handleMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.1);
+        
+        let frameMaterial = new BABYLON.StandardMaterial("frameMaterial", scene);
+        frameMaterial.diffuseColor = new BABYLON.Color3(0.35, 0.18, 0.08);
+        
+        let door = BABYLON.MeshBuilder.CreateBox("doorPanel", {
+            width: 1.8,
+            height: 2.4,
+            depth: 0.08
+        }, scene);
+        door.parent = doorGroup;
+        door.material = doorMaterial;
+        
+        let topFrame = BABYLON.MeshBuilder.CreateBox("topFrame", {
+            width: 2.2,
+            height: 0.12,
+            depth: 0.12
+        }, scene);
+        topFrame.parent = doorGroup;
+        topFrame.position.y = 1.26;
+        topFrame.material = frameMaterial;
+        
+        let leftFrame = BABYLON.MeshBuilder.CreateBox("leftFrame", {
+            width: 0.12,
+            height: 2.64,
+            depth: 0.12
+        }, scene);
+        leftFrame.parent = doorGroup;
+        leftFrame.position.x = -1.04;
+        leftFrame.material = frameMaterial;
+        
+        let rightFrame = BABYLON.MeshBuilder.CreateBox("rightFrame", {
+            width: 0.12,
+            height: 2.64,
+            depth: 0.12
+        }, scene);
+        rightFrame.parent = doorGroup;
+        rightFrame.position.x = 1.04;
+        rightFrame.material = frameMaterial;
+        
+        let doorHandle = BABYLON.MeshBuilder.CreateCylinder("doorHandle", {
+            height: 0.04,
+            diameter: 0.08,
+            tessellation: 16
+        }, scene);
+        doorHandle.parent = doorGroup;
+        doorHandle.rotation.x = Math.PI/2;
+        doorHandle.position = new BABYLON.Vector3(0.7, 0, 0.08);
+        doorHandle.material = handleMaterial;
+        
+        let handleConnector = BABYLON.MeshBuilder.CreateBox("handleConnector", {
+            width: 0.04,
+            height: 0.04,
+            depth: 0.06
+        }, scene);
+        handleConnector.parent = doorGroup;
+        handleConnector.position = new BABYLON.Vector3(0.7, 0, 0.04);
+        handleConnector.material = handleMaterial;
+        
+        doorGroup.position = new BABYLON.Vector3(0, 1.2, -roomDepth/2 + 0.05);
+        
+        console.log("Giriş kapısı eklendi");
+        
+        return doorGroup;
+    }
 
-// Kapıyı ekle
 let door = addDoor();
 
 function addOpenableWindow(position, width, height, frameDepth, sashDepth) {
     const halfW = width / 2;
     
-    // Materyaller
     const frameMat = new BABYLON.StandardMaterial("frameMat", scene);
     frameMat.diffuseColor = new BABYLON.Color3(0.45, 0.28, 0.12);
 
     const glassMat = new BABYLON.StandardMaterial("glassMat", scene);
     glassMat.diffuseColor = new BABYLON.Color3(0.8, 0.9, 1);
-    glassMat.alpha = 0.6; // Daha az şeffaf yaptık
+    glassMat.alpha = 0.6;
     glassMat.backFaceCulling = false;
 
     const viewMat = new BABYLON.StandardMaterial("viewMat", scene);
     viewMat.diffuseTexture = new BABYLON.Texture("textures/window_view.jpg", scene);
     viewMat.backFaceCulling = false;
 
-    // Grup
     const winGroup = new BABYLON.TransformNode("openableWindow", scene);
     winGroup.position = position;
     winGroup.rotation.y = Math.PI / 2;
 
-    // Çerçeve
     const frame = BABYLON.MeshBuilder.CreateBox("winFrame", {
         width: width + 0.1,
         height: height + 0.1,
@@ -291,39 +252,34 @@ function addOpenableWindow(position, width, height, frameDepth, sashDepth) {
     frame.material = frameMat;
     frame.isPickable = false;
 
-    // Sol kanat (CAM) - Daha öne çıkar, daha kalın
     const leftSash = BABYLON.MeshBuilder.CreateBox("leftSash", {
         width: halfW - 0.01,
         height: height - 0.02,
-        depth: sashDepth + 0.03 // Daha kalın yap
+        depth: sashDepth + 0.03
     }, scene);
     leftSash.parent = winGroup;
     leftSash.material = glassMat;
     leftSash.position.x = -halfW / 2;
-    leftSash.position.z = (frameDepth + sashDepth) / 2 + 0.1; // Çok daha öne çıkar
+    leftSash.position.z = (frameDepth + sashDepth) / 2 + 0.1;
     
-    // SOL KANAT: Sol kenarından dönmeli (negatif x tarafında pivot)
     leftSash.setPivotPoint(new BABYLON.Vector3(-halfW / 2, 0, 0));
     leftSash.isPickable = true;
     leftSash.isOpen = false;
 
-    // Sağ kanat (CAM) - Daha öne çıkar, daha kalın
     const rightSash = BABYLON.MeshBuilder.CreateBox("rightSash", {
         width: halfW - 0.01,
         height: height - 0.02,
-        depth: sashDepth + 0.03 // Daha kalın yap
+        depth: sashDepth + 0.03
     }, scene);
     rightSash.parent = winGroup;
     rightSash.material = glassMat;
     rightSash.position.x = halfW / 2;
-    rightSash.position.z = (frameDepth + sashDepth) / 2 + 0.1; // Çok daha öne çıkar
+    rightSash.position.z = (frameDepth + sashDepth) / 2 + 0.1;
     
-    // SAĞ KANAT: Sağ kenarından dönmeli (pozitif x tarafında pivot)
     rightSash.setPivotPoint(new BABYLON.Vector3(halfW / 2, 0, 0));
     rightSash.isPickable = true;
     rightSash.isOpen = false;
 
-    // Manzara (arka plan)
     const outsideView = BABYLON.MeshBuilder.CreatePlane("outsideView", {
         width: width,
         height: height
@@ -333,11 +289,9 @@ function addOpenableWindow(position, width, height, frameDepth, sashDepth) {
     outsideView.material = viewMat;
     outsideView.isPickable = false;
 
-    // Global referanslar oluştur (dışarıdan erişim için)
     window.leftSashRef = leftSash;
     window.rightSashRef = rightSash;
 
-    // Animasyon fonksiyonu (global)
     window.toggleSash = function(sash, dir) {
         const from = sash.rotation.y;
         const to = sash.isOpen ? 0 : Math.PI / 2 * dir;
@@ -352,7 +306,7 @@ function addOpenableWindow(position, width, height, frameDepth, sashDepth) {
         );
         anim.setKeys([
             { frame: 0, value: from },
-            { frame: 30, value: to } // Biraz daha yavaş animasyon
+            { frame: 30, value: to }
         ]);
         
         sash.animations = [anim];
@@ -361,31 +315,27 @@ function addOpenableWindow(position, width, height, frameDepth, sashDepth) {
         console.log(sash.name + " açıldı/kapandı. Yeni durum:", sash.isOpen ? "Açık" : "Kapalı");
     };
 
-    // Sol kanat ActionManager - İçe doğru açılır
     leftSash.actionManager = new BABYLON.ActionManager(scene);
     leftSash.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
         BABYLON.ActionManager.OnPickTrigger, function () {
             console.log("Sol kanat tıklandı!");
-            toggleSash(leftSash, -1); // Sol kanat içe doğru açılır
+            toggleSash(leftSash, -1);
         }
     ));
 
-    // Sağ kanat ActionManager - İçe doğru açılır
     rightSash.actionManager = new BABYLON.ActionManager(scene);
     rightSash.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
         BABYLON.ActionManager.OnPickTrigger, function () {
             console.log("Sağ kanat tıklandı!");
-            toggleSash(rightSash, 1); // Sağ kanat içe doğru açılır
+            toggleSash(rightSash, 1);
         }
     ));
 
-    // Hover efekti ekleyelim (isteğe bağlı)
     const highlightMat = new BABYLON.StandardMaterial("highlightMat", scene);
     highlightMat.diffuseColor = new BABYLON.Color3(1, 1, 0.8);
     highlightMat.alpha = 0.7;
     highlightMat.backFaceCulling = false;
 
-    // Mouse hover efektleri
     leftSash.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
         BABYLON.ActionManager.OnPointerOverTrigger, function () {
             leftSash.material = highlightMat;
@@ -416,7 +366,6 @@ function addOpenableWindow(position, width, height, frameDepth, sashDepth) {
     return winGroup;
 }
 
-// Pencereyi oluştururken:
 addOpenableWindow(
     new BABYLON.Vector3(roomWidth/2 - 0.06, 1.7, 0),
     2.0,   // genişlik
@@ -425,17 +374,14 @@ addOpenableWindow(
     0.05   // kanat kalınlığı
 );
 
-// TV ekranı için materyal 
 let tvScreenMaterial = new BABYLON.StandardMaterial("tvScreenMat", scene);
-let tvTexture = new BABYLON.Texture("textures/tv.jpg", scene); // tv.jpg texture'ı
+let tvTexture = new BABYLON.Texture("textures/tv.jpg", scene);
 tvScreenMaterial.diffuseTexture = tvTexture;
-tvScreenMaterial.emissiveColor = new BABYLON.Color3(0.2, 0.2, 0.2); // Hafif parlaklık
+tvScreenMaterial.emissiveColor = new BABYLON.Color3(0.2, 0.2, 0.2);
 
-// TV çerçevesi için materyal
 let tvFrameMaterial = new BABYLON.StandardMaterial("tvFrameMat", scene);
-tvFrameMaterial.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1); // Siyah
+tvFrameMaterial.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
 
-// TV çerçevesi (3D görünüm için)
 let tvFrame = BABYLON.MeshBuilder.CreateBox("tvFrame", {
     width: 2.2,
     height: 1.5,
@@ -444,80 +390,69 @@ let tvFrame = BABYLON.MeshBuilder.CreateBox("tvFrame", {
 tvFrame.parent = tvGroup;
 tvFrame.material = tvFrameMaterial;
 
-// TV ekranı (texture'lı kısım)
 let tvScreen = BABYLON.MeshBuilder.CreatePlane("tvScreen", {
     width: 2,
     height: 1.3
 }, scene);
 tvScreen.parent = tvGroup;
-tvScreen.position.z = 0.06; // Çerçevenin önüne
+tvScreen.position.z = 0.06;
 tvScreen.material = tvScreenMaterial;
 
-// TV altlığı/standı
 let tvStand = BABYLON.MeshBuilder.CreateBox("tvStand", {
     width: 0.6,
     height: 0.1,
     depth: 0.3
 }, scene);
 tvStand.parent = tvGroup;
-tvStand.position.y = -0.8; // TV'nin altında
+tvStand.position.y = -0.8;
 tvStand.material = tvFrameMaterial;
 
-// TV'yi pencereyle aynı yere konumlandır
 tvGroup.position = new BABYLON.Vector3(0, 1.5, roomDepth/2 - 0.05);
 
-// Geliştirilmiş duvar rafı (daha stabil görünüm için)
 function addSimpleShelf(positionX, positionY, positionZ, rotationY, width) {
-    // Ana grup
     let shelfGroup = new BABYLON.TransformNode("simpleShelf_" + Date.now(), scene);
     
-    // Ahşap materyal - doku ile
     let woodMaterial = new BABYLON.StandardMaterial("woodMat", scene);
-    woodMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1); // Koyu ahşap
-    woodMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1); // Az parlak
+    woodMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1);
+    woodMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
     
-    // Ana raf - düz bir kutu, daha kalın
     let shelf = BABYLON.MeshBuilder.CreateBox("shelfBody", {
         width: width,
-        height: 0.15,  // Daha kalın raf
-        depth: 0.3     // Sabit derinlik
+        height: 0.15,
+        depth: 0.3
     }, scene);
     shelf.parent = shelfGroup;
     shelf.material = woodMaterial;
     
-    // Dekoratif nesne 1 (küp - kitap)
     let book = BABYLON.MeshBuilder.CreateBox("book", {
         width: 0.2,
         height: 0.25,
         depth: 0.15
     }, scene);
     book.parent = shelfGroup;
-    book.position.y = 0.2;  // Rafın üstünde
-    book.position.x = -width/3;  // Sol tarafa yakın
+    book.position.y = 0.2;
+    book.position.x = -width/3;
     
     let bookMaterial = new BABYLON.StandardMaterial("bookMat", scene);
-    bookMaterial.diffuseColor = new BABYLON.Color3(0.1, 0.2, 0.7); // Mavi
+    bookMaterial.diffuseColor = new BABYLON.Color3(0.1, 0.2, 0.7);
     book.material = bookMaterial;
     
-    // Dekoratif nesne 2 (silindir - vazo)
     let vase = BABYLON.MeshBuilder.CreateCylinder("vase", {
         height: 0.3,
         diameter: 0.1,
         tessellation: 16
     }, scene);
     vase.parent = shelfGroup;
-    vase.position.y = 0.225;  // Rafın üstünde
-    vase.position.x = width/3;  // Sağ tarafa yakın
+    vase.position.y = 0.225;
+    vase.position.x = width/3;
     
     let vaseMaterial = new BABYLON.StandardMaterial("vaseMat", scene);
-    vaseMaterial.diffuseColor = new BABYLON.Color3(0.7, 0.1, 0.1); // Kırmızı
+    vaseMaterial.diffuseColor = new BABYLON.Color3(0.7, 0.1, 0.1);
     vase.material = vaseMaterial;
     
-    // Konumlandır
     shelfGroup.position = new BABYLON.Vector3(positionX, positionY, positionZ);
     shelfGroup.rotation.y = rotationY;
     
-    // Gölge ekle
     if (shadowGenerator) {
         shadowGenerator.addShadowCaster(shelf);
         shadowGenerator.addShadowCaster(book);
@@ -528,7 +463,6 @@ function addSimpleShelf(positionX, positionY, positionZ, rotationY, width) {
     return shelfGroup;
 }
 
-// Yeni rafları ekle - daha güvenli pozisyonlarda
 addSimpleShelf(
     -2.5,                // X pozisyonu - sol duvar
     1.5,                 // Y pozisyonu
@@ -545,7 +479,6 @@ addSimpleShelf(
     1.2                  // Genişlik
 );
 
-// Üçüncü raf
 addSimpleShelf(
     -roomWidth/2 + 0.2,  // X pozisyonu - sol duvar (0.2 birim mesafe)
     1.6,                 // Y pozisyonu - yüksek
@@ -554,7 +487,6 @@ addSimpleShelf(
     1.2                  // Genişlik
 );
 
-// Kamera pozisyon debug fonksiyonu
 function debugCameraPosition() {
     if (typeof camera !== 'undefined' && camera) {
         console.log(`📷 Kamera pozisyonu: x=${camera.position.x.toFixed(2)}, y=${camera.position.y.toFixed(2)}, z=${camera.position.z.toFixed(2)}`);
@@ -562,14 +494,12 @@ function debugCameraPosition() {
     }
 }
 
-// Sahne debug fonksiyonu
 function debugScene() {
     console.log("🔍 SAHNE DEBUG BİLGİLERİ:");
     console.log(`📦 Toplam mesh sayısı: ${scene.meshes.length}`);
     console.log(`💡 Toplam ışık sayısı: ${scene.lights.length}`);
     console.log(`🎭 Toplam materyal sayısı: ${scene.materials.length}`);
     
-    // Tablo mesh'lerini ara
     let paintingMeshes = scene.meshes.filter(mesh => mesh.name.includes('painting'));
     console.log(`🖼️ Tablo mesh'leri: ${paintingMeshes.length} adet`);
     paintingMeshes.forEach(mesh => {
@@ -583,18 +513,14 @@ function debugScene() {
 debugScene();
 
 
-    // Gelişmiş bitki ekleme fonksiyonu
     function addRealisticPlant(positionX, positionZ, scale, plantType = "ficus") {
-        // Bitki grubu oluştur
         let plantGroup = new BABYLON.TransformNode("plantGroup_" + Date.now(), scene);
         
-        // Saksı için materyal - daha gerçekçi
         let potMaterial = new BABYLON.StandardMaterial("potMaterial", scene);
         potMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1);
         potMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
         potMaterial.roughness = 0.8;
         
-        // Saksı (daha güzel şekil)
         let pot = BABYLON.MeshBuilder.CreateCylinder("pot", {
             height: 0.6,
             diameterTop: 0.8,
@@ -605,11 +531,9 @@ debugScene();
         pot.position.y = 0.3;
         pot.material = potMaterial;
         
-        // Toprak için materyal
         let soilMaterial = new BABYLON.StandardMaterial("soilMaterial", scene);
         soilMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.2, 0.1);
         
-        // Toprak yüzeyi
         let soil = BABYLON.MeshBuilder.CreateCylinder("soil", {
             height: 0.05,
             diameter: 0.75,
@@ -619,7 +543,6 @@ debugScene();
         soil.position.y = 0.6;
         soil.material = soilMaterial;
         
-        // Bitki türüne göre farklı bitkiler oluştur
         if (plantType === "ficus") {
             createFicusPlant(plantGroup);
         } else if (plantType === "palm") {
@@ -628,11 +551,9 @@ debugScene();
             createMonsteraPlant(plantGroup);
         }
         
-        // Konumlandırma ve ölçeklendirme
         plantGroup.position = new BABYLON.Vector3(positionX, 0, positionZ);
         plantGroup.scaling = new BABYLON.Vector3(scale, scale, scale);
         
-        // Gölge için ekle
         if (shadowGenerator) {
             shadowGenerator.addShadowCaster(pot);
             shadowGenerator.addShadowCaster(soil);
@@ -643,13 +564,10 @@ debugScene();
         return plantGroup;
     }
 
-    // Ficus bitkisi oluşturma
     function createFicusPlant(parentGroup) {
-        // Gövde materyali
         let trunkMaterial = new BABYLON.StandardMaterial("trunkMaterial", scene);
         trunkMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1);
         
-        // Ana gövde
         let trunk = BABYLON.MeshBuilder.CreateCylinder("trunk", {
             height: 1.0,
             diameterTop: 0.08,
@@ -660,19 +578,16 @@ debugScene();
         trunk.position.y = 1.1;
         trunk.material = trunkMaterial;
         
-        // Yaprak materyali
         let leafMaterial = new BABYLON.StandardMaterial("leafMaterial", scene);
         leafMaterial.diffuseColor = new BABYLON.Color3(0.1, 0.6, 0.1);
         leafMaterial.specularColor = new BABYLON.Color3(0.05, 0.1, 0.05);
-        leafMaterial.backFaceCulling = false; // İki taraflı görünüm
+        leafMaterial.backFaceCulling = false;
         
-        // Yapraklar için farklı dallar
         for (let i = 0; i < 8; i++) {
             let angle = (i / 8) * Math.PI * 2;
             let height = 1.4 + Math.random() * 0.4;
             let distance = 0.3 + Math.random() * 0.2;
             
-            // Dal
             let branch = BABYLON.MeshBuilder.CreateCylinder("branch", {
                 height: 0.3,
                 diameter: 0.03,
@@ -687,7 +602,6 @@ debugScene();
             branch.rotation.z = Math.PI / 6;
             branch.material = trunkMaterial;
             
-            // Yaprak kümeleri
             for (let j = 0; j < 3; j++) {
                 let leaf = BABYLON.MeshBuilder.CreateSphere("leaf", {
                     diameterX: 0.4 + Math.random() * 0.2,
@@ -722,12 +636,10 @@ debugScene();
         }
     }
 
-    // Palmiye bitkisi oluşturma
     function createPalmPlant(parentGroup) {
         let trunkMaterial = new BABYLON.StandardMaterial("palmTrunkMaterial", scene);
         trunkMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.3, 0.1);
         
-        // Palmiye gövdesi
         let trunk = BABYLON.MeshBuilder.CreateCylinder("palmTrunk", {
             height: 1.5,
             diameterTop: 0.1,
@@ -738,16 +650,13 @@ debugScene();
         trunk.position.y = 1.35;
         trunk.material = trunkMaterial;
         
-        // Palmiye yaprağı materyali
         let palmLeafMaterial = new BABYLON.StandardMaterial("palmLeafMaterial", scene);
         palmLeafMaterial.diffuseColor = new BABYLON.Color3(0.0, 0.7, 0.0);
         palmLeafMaterial.backFaceCulling = false;
         
-        // Palmiye yaprakları
         for (let i = 0; i < 6; i++) {
             let angle = (i / 6) * Math.PI * 2;
             
-            // Yaprak sapı
             let stem = BABYLON.MeshBuilder.CreateCylinder("palmStem", {
                 height: 1.2,
                 diameter: 0.02,
@@ -759,7 +668,6 @@ debugScene();
             stem.rotation.y = angle;
             stem.material = trunkMaterial;
             
-            // Yaprak parçaları
             for (let j = 0; j < 10; j++) {
                 let leaflet = BABYLON.MeshBuilder.CreateBox("palmLeaflet", {
                     width: 0.1,
@@ -796,13 +704,11 @@ debugScene();
         }
     }
 
-    // Monstera bitkisi oluşturma
     function createMonsteraPlant(parentGroup) {
         let leafMaterial = new BABYLON.StandardMaterial("monsteraLeafMaterial", scene);
         leafMaterial.diffuseColor = new BABYLON.Color3(0.05, 0.5, 0.05);
         leafMaterial.backFaceCulling = false;
         
-        // Gövde
         let stem = BABYLON.MeshBuilder.CreateCylinder("monsteraStem", {
             height: 0.8,
             diameter: 0.06,
@@ -813,12 +719,10 @@ debugScene();
         stem.material = new BABYLON.StandardMaterial("stemMat", scene);
         stem.material.diffuseColor = new BABYLON.Color3(0.2, 0.4, 0.1);
         
-        // Büyük monstera yaprakları
         for (let i = 0; i < 5; i++) {
             let angle = (i / 5) * Math.PI * 2;
             let height = 1.2 + i * 0.2;
             
-            // Yaprak sapı
             let petiole = BABYLON.MeshBuilder.CreateCylinder("petiole", {
                 height: 0.4,
                 diameter: 0.03,
@@ -834,7 +738,6 @@ debugScene();
             petiole.rotation.y = angle;
             petiole.material = stem.material;
             
-            // Büyük yaprak
             let leaf = BABYLON.MeshBuilder.CreateSphere("monsteraLeaf", {
                 diameterX: 0.8,
                 diameterY: 1.0,
@@ -864,38 +767,31 @@ debugScene();
         }
     }
 
-    // Farklı bitki türleri ile odayı dekore et
-    addRealisticPlant(-4.5, -4.5, 0.8, "ficus");     // Sol ön köşe - Ficus
-    addRealisticPlant(4.5, -4.5, 0.7, "palm");       // Sağ ön köşe - Palmiye
-    addRealisticPlant(-4.5, 4.5, 0.9, "monstera");   // Sol arka köşe - Monstera
-    addRealisticPlant(4.5, 4.5, 0.8, "ficus");       // Sağ arka köşe - Ficus
+    addRealisticPlant(-4.5, -4.5, 0.8, "ficus");
+    addRealisticPlant(4.5, -4.5, 0.7, "palm");
+    addRealisticPlant(-4.5, 4.5, 0.9, "monstera");
+    addRealisticPlant(4.5, 4.5, 0.8, "ficus");
 
 }
     
-    // Mobilya modellerini yükle
     function loadFurnitureMeshes() {
         console.log("Mobilya modellerini yüklemeye başlıyor...");
         
-        // Koltuk modelini yükle
         console.log("Koltuk modeli yükleniyor: models/sofa.glb");
         BABYLON.SceneLoader.ImportMesh("", "models/", "sofa.glb", scene, function(newMeshes) {
             console.log("Koltuk modeli başarıyla yüklendi, mesh sayısı:", newMeshes.length);
             
-            // Birleştirme işlemini kaldır, ana düğüm oluştur
             let sofa = new BABYLON.TransformNode("sofaTemplate", scene);
             
-            // Modeli ölçeklendir ve döndür
             sofa.scaling = new BABYLON.Vector3(0.01, 0.01, 0.01);
             sofa.rotation.y = Math.PI;
             
-            // Tüm meshler için malzeme oluştur
             let sofaMaterial = new BABYLON.StandardMaterial("sofaMaterial", scene);
             sofaMaterial.diffuseTexture = new BABYLON.Texture("textures/fabric_blue.jpg", scene, false, false, null, assetLoaded);
             sofaMaterial.diffuseTexture.uScale = 2;
             sofaMaterial.diffuseTexture.vScale = 2;
             sofaMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
             
-            // Tüm meshleri ana düğüme bağla ve malzemeyi uygula
             newMeshes.forEach(mesh => {
                 if (mesh.name !== "__root__") {
                     mesh.parent = sofa;
@@ -903,40 +799,33 @@ debugScene();
                         mesh.material = sofaMaterial;
                         mesh.receiveShadows = true;
                     }
-                    // ÖNEMLİ: Başlangıçta mesh'i GÖRÜNMEZ yap
                     mesh.isVisible = false;
                 }
             });
             
-            // TEMPLATE MODELİNİ GÖRÜNMEZ YAP
             sofa.isVisible = false;
             furnitureModels.sofa = sofa;
             console.log("Koltuk modeli hazır: furnitureModels.sofa");
             
         }, null, function(scene, message) {
             console.error("Koltuk yüklenirken hata:", message);
-            assetLoaded(); // Hata durumunda da yükleme sayacını artır
+            assetLoaded();
         });
         
-        // Masa modelini yükle
         console.log("Masa modeli yükleniyor: models/table.glb");
         BABYLON.SceneLoader.ImportMesh("", "models/", "table.glb", scene, function(newMeshes) {
             console.log("Masa modeli başarıyla yüklendi, mesh sayısı:", newMeshes.length);
             
-            // Birleştirme işlemini kaldır, ana düğüm oluştur
             let table = new BABYLON.TransformNode("tableTemplate", scene);
             
-            // Modeli ölçeklendir
             table.scaling = new BABYLON.Vector3(0.01, 0.01, 0.01);
             
-            // Tüm meshler için malzeme oluştur
             let tableMaterial = new BABYLON.StandardMaterial("tableMaterial", scene);
             tableMaterial.diffuseTexture = new BABYLON.Texture("textures/wood.jpg", scene, false, false, null, assetLoaded);
             tableMaterial.diffuseTexture.uScale = 1;
             tableMaterial.diffuseTexture.vScale = 1;
             tableMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
             
-            // Tüm meshleri ana düğüme bağla ve malzemeyi uygula
             newMeshes.forEach(mesh => {
                 if (mesh.name !== "__root__") {
                     mesh.parent = table;
@@ -944,38 +833,31 @@ debugScene();
                         mesh.material = tableMaterial;
                         mesh.receiveShadows = true;
                     }
-                    // ÖNEMLİ: Başlangıçta mesh'i GÖRÜNMEZ yap
                     mesh.isVisible = false;
                 }
             });
             
-            // TEMPLATE MODELİNİ GÖRÜNMEZ YAP
             table.isVisible = false;
             furnitureModels.table = table;
             console.log("Masa modeli hazır: furnitureModels.table");
             
         }, null, function(scene, message) {
             console.error("Masa yüklenirken hata:", message);
-            assetLoaded(); // Hata durumunda da yükleme sayacını artır
+            assetLoaded();
         });
         
-        // Sandalye modelini yükle
         console.log("Sandalye modeli yükleniyor: models/chair.glb");
         BABYLON.SceneLoader.ImportMesh("", "models/", "chair.glb", scene, function(newMeshes) {
             console.log("Sandalye modeli başarıyla yüklendi, mesh sayısı:", newMeshes.length);
             
-            // Birleştirme işlemini kaldır, ana düğüm oluştur
             let chair = new BABYLON.TransformNode("chairTemplate", scene);
             
-            // Modeli ölçeklendir
             chair.scaling = new BABYLON.Vector3(0.01, 0.01, 0.01);
             
-            // Tüm meshler için malzeme oluştur
             let chairMaterial = new BABYLON.StandardMaterial("chairMaterial", scene);
             chairMaterial.diffuseTexture = new BABYLON.Texture("textures/chair_texture.jpg", scene, false, false, null, assetLoaded);
             chairMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
             
-            // Tüm meshleri ana düğüme bağla ve malzemeyi uygula
             newMeshes.forEach(mesh => {
                 if (mesh.name !== "__root__") {
                     mesh.parent = chair;
@@ -983,38 +865,31 @@ debugScene();
                         mesh.material = chairMaterial;
                         mesh.receiveShadows = true;
                     }
-                    // ÖNEMLİ: Başlangıçta mesh'i GÖRÜNMEZ yap
                     mesh.isVisible = false;
                 }
             });
             
-            // TEMPLATE MODELİNİ GÖRÜNMEZ YAP
             chair.isVisible = false;
             furnitureModels.chair = chair;
             console.log("Sandalye modeli hazır: furnitureModels.chair");
             
         }, null, function(scene, message) {
             console.error("Sandalye yüklenirken hata:", message);
-            assetLoaded(); // Hata durumunda da yükleme sayacını artır
+            assetLoaded();
         });
         
-        // Lamba modelini yükle
         console.log("Lamba modeli yükleniyor: models/lamp.glb");
         BABYLON.SceneLoader.ImportMesh("", "models/", "lamp.glb", scene, function(newMeshes) {
             console.log("Lamba modeli başarıyla yüklendi, mesh sayısı:", newMeshes.length);
             
-            // Birleştirme işlemini kaldır, ana düğüm oluştur
             let lamp = new BABYLON.TransformNode("lampTemplate", scene);
             
-            // Modeli ölçeklendir
             lamp.scaling = new BABYLON.Vector3(0.01, 0.01, 0.01);
             
-            // Tüm meshler için malzeme oluştur
             let lampMaterial = new BABYLON.StandardMaterial("lampBaseMaterial", scene);
             lampMaterial.diffuseTexture = new BABYLON.Texture("textures/metal.jpg", scene, false, false, null, assetLoaded);
             lampMaterial.specularColor = new BABYLON.Color3(0.8, 0.8, 0.8);
             
-            // Tüm meshleri ana düğüme bağla ve malzemeyi uygula
             newMeshes.forEach(mesh => {
                 if (mesh.name !== "__root__") {
                     mesh.parent = lamp;
@@ -1022,55 +897,161 @@ debugScene();
                         mesh.material = lampMaterial;
                         mesh.receiveShadows = true;
                     }
-                    // ÖNEMLİ: Başlangıçta mesh'i GÖRÜNMEZ yap
                     mesh.isVisible = false;
                 }
             });
             
-            // TEMPLATE MODELİNİ GÖRÜNMEZ YAP
             lamp.isVisible = false;
             furnitureModels.lamp = lamp;
             console.log("Lamba modeli hazır: furnitureModels.lamp");
             
         }, null, function(scene, message) {
             console.error("Lamba yüklenirken hata:", message);
-            assetLoaded(); // Hata durumunda da yükleme sayacını artır
+            
+        
+            sofa.isVisible = false;
+            furnitureModels.sofa = sofa;
+            console.log("Koltuk modeli hazır: furnitureModels.sofa");
+            
+        }, null, function(scene, message) {
+            console.error("Koltuk yüklenirken hata:", message);
+            assetLoaded(); 
+        });
+        
+        console.log("Masa modeli yükleniyor: models/table.glb");
+        BABYLON.SceneLoader.ImportMesh("", "models/", "table.glb", scene, function(newMeshes) {
+            console.log("Masa modeli başarıyla yüklendi, mesh sayısı:", newMeshes.length);
+            
+            let table = new BABYLON.TransformNode("tableTemplate", scene);
+            
+            
+            table.scaling = new BABYLON.Vector3(0.01, 0.01, 0.01);
+        
+            let tableMaterial = new BABYLON.StandardMaterial("tableMaterial", scene);
+            tableMaterial.diffuseTexture = new BABYLON.Texture("textures/wood.jpg", scene, false, false, null, assetLoaded);
+            tableMaterial.diffuseTexture.uScale = 1;
+            tableMaterial.diffuseTexture.vScale = 1;
+            tableMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+            
+            
+            newMeshes.forEach(mesh => {
+                if (mesh.name !== "__root__") {
+                    mesh.parent = table;
+                    if (mesh.material) {
+                        mesh.material = tableMaterial;
+                        mesh.receiveShadows = true;
+                    }
+                    
+                    mesh.isVisible = false;
+                }
+            });
+            
+            table.isVisible = false;
+            furnitureModels.table = table;
+            console.log("Masa modeli hazır: furnitureModels.table");
+            
+        }, null, function(scene, message) {
+            console.error("Masa yüklenirken hata:", message);
+            assetLoaded(); 
+        });
+        
+        console.log("Sandalye modeli yükleniyor: models/chair.glb");
+        BABYLON.SceneLoader.ImportMesh("", "models/", "chair.glb", scene, function(newMeshes) {
+            console.log("Sandalye modeli başarıyla yüklendi, mesh sayısı:", newMeshes.length);
+            
+        
+            let chair = new BABYLON.TransformNode("chairTemplate", scene);
+            
+            
+            chair.scaling = new BABYLON.Vector3(0.01, 0.01, 0.01);
+            
+            
+            let chairMaterial = new BABYLON.StandardMaterial("chairMaterial", scene);
+            chairMaterial.diffuseTexture = new BABYLON.Texture("textures/chair_texture.jpg", scene, false, false, null, assetLoaded);
+            chairMaterial.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+            
+            newMeshes.forEach(mesh => {
+                if (mesh.name !== "__root__") {
+                    mesh.parent = chair;
+                    if (mesh.material) {
+                        mesh.material = chairMaterial;
+                        mesh.receiveShadows = true;
+                    }
+                    mesh.isVisible = false;
+                }
+            });
+            
+            chair.isVisible = false;
+            furnitureModels.chair = chair;
+            console.log("Sandalye modeli hazır: furnitureModels.chair");
+            
+        }, null, function(scene, message) {
+            console.error("Sandalye yüklenirken hata:", message);
+            assetLoaded(); 
+        });
+        
+        console.log("Lamba modeli yükleniyor: models/lamp.glb");
+        BABYLON.SceneLoader.ImportMesh("", "models/", "lamp.glb", scene, function(newMeshes) {
+            console.log("Lamba modeli başarıyla yüklendi, mesh sayısı:", newMeshes.length);
+            
+            
+            let lamp = new BABYLON.TransformNode("lampTemplate", scene);
+            
+           
+            lamp.scaling = new BABYLON.Vector3(0.01, 0.01, 0.01);
+            
+           
+            let lampMaterial = new BABYLON.StandardMaterial("lampBaseMaterial", scene);
+            lampMaterial.diffuseTexture = new BABYLON.Texture("textures/metal.jpg", scene, false, false, null, assetLoaded);
+            lampMaterial.specularColor = new BABYLON.Color3(0.8, 0.8, 0.8);
+            
+            
+            newMeshes.forEach(mesh => {
+                if (mesh.name !== "__root__") {
+                    mesh.parent = lamp;
+                    if (mesh.material) {
+                        mesh.material = lampMaterial;
+                        mesh.receiveShadows = true;
+                    }
+                    
+                    mesh.isVisible = false;
+                }
+            });
+            
+           
+            lamp.isVisible = false;
+            furnitureModels.lamp = lamp;
+            console.log("Lamba modeli hazır: furnitureModels.lamp");
+            
+        }, null, function(scene, message) {
+            console.error("Lamba yüklenirken hata:", message);
+            assetLoaded(); 
         });
 
-        // Yatak modelini yükle ve ayarla
 console.log("Yatak modeli yükleniyor: models/bed.glb");
 BABYLON.SceneLoader.ImportMesh("", "models/", "bed.glb", scene, function(newMeshes) {
     console.log("Yatak modeli başarıyla yüklendi, mesh sayısı:", newMeshes.length);
     
-    // Ana düğüm oluştur
     let bed = new BABYLON.TransformNode("bedTemplate", scene);
     
-    // Template için ölçek - SADECE TEMPLATE İÇİN
     bed.scaling = new BABYLON.Vector3(0.01, 0.01, 0.01);
     
-    // Rotasyonu baştan sıfırla
     bed.rotation = new BABYLON.Vector3(0, 0, 0);
     bed.rotationQuaternion = null;
     
-    // Tüm meshleri ana düğüme bağla - HİÇBİR MALZEME DEĞİŞİKLİĞİ YAPMA
     newMeshes.forEach((mesh, index) => {
         if (mesh.name !== "__root__") {
             mesh.parent = bed;
             mesh.receiveShadows = true;
             
-            // Mesh'in kendi rotasyonunu da sıfırla
             mesh.rotation = new BABYLON.Vector3(0, 0, 0);
             mesh.rotationQuaternion = null;
             
-            // ÖNEMLİ: MALZEMEYE HİÇ DOKUNMA - ORİJİNAL KALSIN
-            
-            // Template mesh'leri görünmez yap
             mesh.isVisible = false;
             mesh.setEnabled(true);
         }
     });
     
-    // Template modelini görünmez yap
     bed.isVisible = false;
     furnitureModels.bed = bed;
     console.log("Yatak modeli hazır: furnitureModels.bed");
@@ -1080,7 +1061,6 @@ BABYLON.SceneLoader.ImportMesh("", "models/", "bed.glb", scene, function(newMesh
     assetLoaded();
 });
         
-        // Fonksiyonun sonuna yükleme durumunu kontrol eden timeout ekle
         setTimeout(() => {
             console.log("--------- MODEL YÜKLEME DURUMU ---------");
             console.log("Yüklenen modeller:", Object.keys(furnitureModels).join(", "));
@@ -1096,10 +1076,9 @@ BABYLON.SceneLoader.ImportMesh("", "models/", "bed.glb", scene, function(newMesh
             
             console.log("Toplam yüklenen asset sayısı:", loadedAssets);
             console.log("----------------------------------------");
-        }, 5000); // 5 saniye sonra kontrol et
+        }, 5000);
     }
     
-    // Varlık yükleme takibi
     function assetLoaded() {
         loadedAssets++;
         const progress = Math.min((loadedAssets / totalAssets) * 100, 100);
@@ -1115,7 +1094,6 @@ BABYLON.SceneLoader.ImportMesh("", "models/", "bed.glb", scene, function(newMesh
         }
     }
     
-    // Mobilya yerleştirme
     function placeFurniture(position) {
         console.log("placeFurniture çağrıldı - Seçilen mobilya:", selectedFurnitureType);
         
@@ -1124,11 +1102,9 @@ BABYLON.SceneLoader.ImportMesh("", "models/", "bed.glb", scene, function(newMesh
             return;
         }
         
-        // Yeni bir transform node oluştur
         let newID = selectedFurnitureType + "_" + Date.now();
         let newFurniture = new BABYLON.TransformNode(newID, scene);
         
-        // Her mobilya tipi için özel ayarlar
         switch(selectedFurnitureType) {
             case 'sofa':
                 newFurniture.position = new BABYLON.Vector3(position.x, 0, position.z);
@@ -1136,39 +1112,32 @@ BABYLON.SceneLoader.ImportMesh("", "models/", "bed.glb", scene, function(newMesh
                 newFurniture.rotation.y = Math.PI;
                 break;
             case 'table':
-                // MASA İÇİN BÜYÜK ÖLÇEK VE YÜKSELTİLMİŞ POZİSYON
                 newFurniture.position = new BABYLON.Vector3(position.x, 0, position.z);
-                newFurniture.scaling = new BABYLON.Vector3(0.5, 0.5, 0.5); // 50x büyütme!
+                newFurniture.scaling = new BABYLON.Vector3(0.5, 0.5, 0.5);
                 break;
             case 'chair':
     console.log("Sandalye yerleştiriliyor...");
     
-    // Temel ayarlar
     newFurniture.position = new BABYLON.Vector3(position.x, 0, position.z);
     newFurniture.scaling = new BABYLON.Vector3(1, 1, 1);
     
-    // Rotasyonu sıfırla
     newFurniture.rotationQuaternion = null;
     newFurniture.rotation = new BABYLON.Vector3(0, 0, 0);
     
     console.log("Sandalye büyük boyutta yerleştirildi");
     
-    // Pozisyon düzeltmesi - child mesh'lerden hesapla
     setTimeout(() => {
         try {
             const childMeshes = newFurniture.getChildMeshes();
             if (childMeshes.length > 0) {
-                // İlk child mesh'den bounding box al
                 const bbox = childMeshes[0].getBoundingInfo();
                 console.log("Child mesh bounding box bulundu");
                 
-                // Boyut kontrolü
                 const size = bbox.boundingBox.extendSizeWorld;
                 const height = size.y * 2;
                 
                 console.log("Sandalye yüksekliği:", height);
                 
-                // Eğer çok büyükse küçült
                 if (height > 3) {
                     const targetHeight = 1.5;
                     const scale = targetHeight / height;
@@ -1176,7 +1145,6 @@ BABYLON.SceneLoader.ImportMesh("", "models/", "bed.glb", scene, function(newMesh
                     console.log("Sandalye ölçeklendi:", scale);
                 }
                 
-                // Zemine oturt - child mesh'lerin en alt noktasını bul
                 setTimeout(() => {
                     let minY = 0;
                     childMeshes.forEach(mesh => {
@@ -1185,15 +1153,14 @@ BABYLON.SceneLoader.ImportMesh("", "models/", "bed.glb", scene, function(newMesh
                         if (meshMinY < minY) minY = meshMinY;
                     });
                     
-                    newFurniture.position.y = -minY + 0.05; // Zeminin biraz üstüne
+                    newFurniture.position.y = -minY + 0.05;
                     console.log("Sandalye zemine oturtuldu, Y pozisyonu:", newFurniture.position.y);
                 }, 100);
             }
             
         } catch (error) {
             console.error("Sandalye pozisyon hatası:", error);
-            // Fallback: Manuel pozisyon ayarı
-            newFurniture.position.y = 0.5; // Zemin üstü sabit yükseklik
+            newFurniture.position.y = 0.5;
             console.log("Manuel pozisyon ayarlandı");
         }
     }, 300);
@@ -1202,51 +1169,43 @@ BABYLON.SceneLoader.ImportMesh("", "models/", "bed.glb", scene, function(newMesh
 case 'lamp':
     console.log("Lamba tavana sabitleniyor...");
     
-    // Lambanın tavana sabitlenmesi - odanın içinde kalacak şekilde
-    // Tavan yüksekliği 5, lamba boyu ~1 birim olduğunu varsayıyoruz
-    // Büyük lamba için daha çok aşağıya indiriyoruz
-    newFurniture.position = new BABYLON.Vector3(position.x, 3.3, position.z); // Kesinlikle tavan sınırının altında
+    newFurniture.position = new BABYLON.Vector3(position.x, 3.3, position.z);
     
-    // Lamba rotasyonu - normal asılı lamba pozisyonu
-    newFurniture.rotation = new BABYLON.Vector3(0, 0, 0); // Düz duruş
+    newFurniture.rotation = new BABYLON.Vector3(0, 0, 0);
     
-    // Lamba ölçeği - daha büyük ama hala uygun boyutta
-    newFurniture.scaling = new BABYLON.Vector3(0.5, 0.5, 0.5); // 0.3'ten 0.5'e çıkardık
+    newFurniture.scaling = new BABYLON.Vector3(0.5, 0.5, 0.5);
     
-    // Sadece tavan bağlantı noktası - sade ve basit
     let ceilingMount = BABYLON.MeshBuilder.CreateCylinder("ceilingMount_" + Date.now(), {
         height: 0.02,
         diameter: 0.08,
         tessellation: 8
     }, scene);
-    ceilingMount.position = new BABYLON.Vector3(position.x, 4.99, position.z); // Tavana yapışık
+    ceilingMount.position = new BABYLON.Vector3(position.x, 4.99, position.z);
     
     let mountMaterial = new BABYLON.StandardMaterial("mountMaterial", scene);
-    mountMaterial.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.9); // Tavan rengine yakın
+    mountMaterial.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.9);
     ceilingMount.material = mountMaterial;
     
-    // Lamba ışığı - aşağı doğru yönlendirilmiş
     let lampLight = new BABYLON.SpotLight("lampLight_" + Date.now(), 
-        new BABYLON.Vector3(0, -0.4, 0), // Lambanın alt kısmından (biraz daha aşağıda)
-        new BABYLON.Vector3(0, -1, 0),   // Aşağı doğru
-        Math.PI / 3,  // Işık açısı (60 derece)
-        2,            // Işık yoğunluğu düşürme oranı
+        new BABYLON.Vector3(0, -0.4, 0),
+        new BABYLON.Vector3(0, -1, 0),
+        Math.PI / 3,
+        2,
         scene);
     
     lampLight.parent = newFurniture;
-    lampLight.intensity = 1.4; // Büyük lambaya uygun olarak biraz artırdık
-    lampLight.diffuse = new BABYLON.Color3(1, 0.9, 0.7); // Sıcak sarı ışık
-    lampLight.range = 7; // Işık menzilini biraz artırdık
+    lampLight.intensity = 1.4;
+    lampLight.diffuse = new BABYLON.Color3(1, 0.9, 0.7);
+    lampLight.range = 7;
     
-    // Hafif sallanma animasyonu ekle (isteğe bağlı)
     BABYLON.Animation.CreateAndStartAnimation(
         "swayAnimation",
         newFurniture,
         "rotation.z",
-        30, // FPS
-        300, // Toplam frame
-        0, // Başlangıç değeri
-        Math.PI / 180 * 3, // 3 derece sallanma
+        30,
+        300,
+        0,
+        Math.PI / 180 * 3,
         BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
     );
     
@@ -1256,15 +1215,12 @@ case 'lamp':
    case 'bed':
     console.log("Yatak yerleştiriliyor...");
     
-    // Temel pozisyon ayarları
     newFurniture.position = new BABYLON.Vector3(position.x, 0, position.z);
     
-    // Rotasyonu temizle
     newFurniture.rotationQuaternion = null;
     newFurniture.rotation = new BABYLON.Vector3(0, 0, 0);
     
-    // Daha büyük ölçek
-    newFurniture.scaling = new BABYLON.Vector3(0.3, 0.3, 0.3); // 0.03'ten 0.15'e çıkardık
+    newFurniture.scaling = new BABYLON.Vector3(0.3, 0.3, 0.3);
 
     break;
 
@@ -1275,47 +1231,42 @@ case 'lamp':
                     "ölçek:", newFurniture.scaling,
                     "döndürme:", newFurniture.rotation);
         
-        // Alt mesh'leri kopyala
         let original = furnitureModels[selectedFurnitureType];
         let childMeshes = original.getChildMeshes();
         console.log(`${selectedFurnitureType} için ${childMeshes.length} mesh bulundu`);
         
-        // Debug için orijinal model bilgilerini göster
         console.log(`Orijinal model bilgileri - ${selectedFurnitureType}:`, 
                 "pozisyon:", original.position, 
                 "ölçek:", original.scaling);
         
-        // Özel malzeme oluştur
         let material = new BABYLON.StandardMaterial(selectedFurnitureType + "Material_" + newID, scene);
         switch(selectedFurnitureType) {
             case 'sofa':
-                material.diffuseColor = new BABYLON.Color3(0, 0, 0.8); // Mavi
+                material.diffuseColor = new BABYLON.Color3(0, 0, 0.8);
                 break;
             case 'table':
-                material.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.05); // Koyu kahverengi
+                material.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.05);
                 break;
             case 'chair':
-                material.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.2); // Koyu gri
+                material.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.2);
                 break;
             case 'lamp':
-                material.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.2); // Sarımsı
-                material.emissiveColor = new BABYLON.Color3(0.2, 0.2, 0); // Işık efekti
+                material.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.2);
+                material.emissiveColor = new BABYLON.Color3(0.2, 0.2, 0);
                 break;
             case 'bed':
-                // Yatak için varsayılan renk (her parçası için farklı malzeme kullanılacak)
-                material.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.5); // Koyu mavi yatak
+                material.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.5);
                 break;   
         }
         
-        // Her bir alt mesh'i klonlarken, yatak için özel işlem yap
         childMeshes.forEach(originalMesh => {
             try {
                 let clonedMesh = originalMesh.clone(originalMesh.name + "_" + newID);
                 clonedMesh.parent = newFurniture;
                 
-                if(selectedFurnitureType !== 'bed') { // Yatak değilse normal malzemeyi uygula
+                if(selectedFurnitureType !== 'bed') {
                     clonedMesh.material = material;
-                } // Yatak ise hiçbir şey yapma - orijinal malzemesini koruyacak
+                }
                 
                 clonedMesh.isVisible = true;
                 clonedMesh.receiveShadows = true;
@@ -1332,7 +1283,6 @@ case 'lamp':
         
         console.log(`${selectedFurnitureType} için ${clonedMeshes.length} mesh klonlandı`);
         
-        // Hiç mesh klonlanmadıysa doğrudan bir küp oluştur (test için)
         if (clonedMeshes.length === 0) {
             console.warn(`${selectedFurnitureType} için hiç mesh klonlanamadı! Test küpü oluşturuluyor...`);
             let testCube = BABYLON.MeshBuilder.CreateBox("testCube_" + newID, {size: 1}, scene);
@@ -1343,61 +1293,47 @@ case 'lamp':
         return newFurniture;
     }
     
-    // Mobilya tipi seçimi (butonlar için)
     function selectFurnitureType(type) {
         console.log(`Mobilya tipi seçildi: ${type}`);
-        // UI güncelle
         document.querySelectorAll('.furniture-btn').forEach(btn => {
             btn.classList.remove('selected');
         });
         document.getElementById(type + '-btn').classList.add('selected');
         
-        // Seçimi güncelle
         selectedFurnitureType = type;
         placementMode = true;
         
-        // Varsa mevcut seçimi kaldır
         clearSelection();
     }
     
-   // Mobilya seçme fonksiyonu - geliştirilmiş versiyon
 function selectFurnitureObject(pickInfo) {
-    // Önceki seçimi temizle
     clearSelection();
     
-    // Tıklanan nesne bir mobilya mı kontrol et
     if (pickInfo.hit && pickInfo.pickedMesh) {
         console.log("Tıklanan mesh:", pickInfo.pickedMesh.name);
         
-        // En üstteki parent'ı bul (transform node)
         let currentMesh = pickInfo.pickedMesh;
         let parentNode = currentMesh;
         
-        // Parent hiyerarşisini izle
         while (parentNode.parent && !parentNode.name.includes("Template")) {
             console.log("Parent yukarı:", parentNode.name, "->", parentNode.parent.name);
             parentNode = parentNode.parent;
         }
         
-        // Debug için
         console.log("Seçilecek üst nesne:", parentNode.name);
         
-        // ÖNEMLİ: Template seçilmesini engelle
         if (parentNode.name.includes("Template")) {
             console.log("Bu bir template modelidir, seçilemez!");
             return false;
         }
         
-        // Mobilya türünü kontrol et (adından)
         if (parentNode && (parentNode.name.includes("sofa") || 
                parentNode.name.includes("table") || 
                parentNode.name.includes("chair") || 
                parentNode.name.includes("lamp") ||
-               parentNode.name.includes("bed")))                  
-                        {
+               parentNode.name.includes("bed")))                  {
             selectedFurniture = parentNode;
             
-            // Seçimi görsel olarak vurgula
             createSelectionHighlight(selectedFurniture);
             
             console.log("Mobilya seçildi:", selectedFurniture.name);
@@ -1405,14 +1341,11 @@ function selectFurnitureObject(pickInfo) {
         }
     }
     
-    // Bir şey seçilmediyse
     selectedFurniture = null;
     return false;
 }
     
-    // Seçim vurgusu oluştur - geliştirilmiş versiyon
 function createSelectionHighlight(furniture) {
-    // Varsa önceki vurguyu temizle
     if (highlightMesh) {
         highlightMesh.dispose();
     }
@@ -1420,29 +1353,24 @@ function createSelectionHighlight(furniture) {
     console.log("Vurgulama oluşturuluyor:", furniture.name);
     
     try {
-        // YÖNTEM 1: Dünya Uzayında Sınırlayıcı Kutu Hesaplama
         let boundingInfo = furniture.getHierarchyBoundingVectors(true);
         let min = boundingInfo.min;
         let max = boundingInfo.max;
         
-        // Sınırlayıcı kutunun boyutları
         let size = max.subtract(min);
         let center = min.add(max).scale(0.5);
         
         console.log("Mobilya boyutları:", size);
         console.log("Mobilya merkezi:", center);
         
-        // Vurgulama için yeni mesh oluştur
         highlightMesh = BABYLON.MeshBuilder.CreateBox("selectionHighlight", {
             width: size.x + 0.1,
             height: size.y + 0.1,
             depth: size.z + 0.1
         }, scene);
         
-        // Merkeze yerleştir
         highlightMesh.position = center;
         
-        // Yarı saydam mavi malzeme
         let highlightMaterial = new BABYLON.StandardMaterial("highlightMaterial", scene);
         highlightMaterial.diffuseColor = new BABYLON.Color3(0, 0.5, 1);
         highlightMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
@@ -1450,14 +1378,12 @@ function createSelectionHighlight(furniture) {
         highlightMaterial.wireframe = false;
         highlightMesh.material = highlightMaterial;
         
-        // Vurgulama kutusunun önceliğini arttır (her zaman görünsün)
         highlightMesh.renderingGroupId = 1;
         
         console.log("Vurgulama kutusu oluşturuldu");
     } catch (error) {
         console.error("Vurgulama kutusu oluşturulurken hata:", error);
         
-        // YÖNTEM 2: Backup yöntemi - Sadece basit bir kutu oluştur
         highlightMesh = BABYLON.MeshBuilder.CreateBox("selectionHighlight", {
             width: 1,
             height: 1,
@@ -1466,14 +1392,12 @@ function createSelectionHighlight(furniture) {
         
         highlightMesh.position = furniture.position.clone();
         
-        // Mobilyanın ölçeğini dikkate al
         highlightMesh.scaling = new BABYLON.Vector3(
             furniture.scale.x * 2,
             furniture.scaling.y * 2,
             furniture.scaling.z * 2
         );
         
-        // Yarı saydam kırmızı malzeme (hata durumu için)
         let highlightMaterial = new BABYLON.StandardMaterial("highlightMaterial", scene);
         highlightMaterial.diffuseColor = new BABYLON.Color3(1, 0, 0);
         highlightMaterial.alpha = 0.3;
@@ -1481,7 +1405,6 @@ function createSelectionHighlight(furniture) {
     }
 }
     
-    // Seçimi temizle
     function clearSelection() {
         if (highlightMesh) {
             highlightMesh.dispose();
@@ -1490,19 +1413,15 @@ function createSelectionHighlight(furniture) {
         selectedFurniture = null;
     }
     
-    
-    // Mobilya silme fonksiyonu
     function deleteFurniture() {
         if (selectedFurniture) {
             console.log("Mobilya siliniyor:", selectedFurniture.name);
             
-            // Önce vurgulamayı temizle
             if (highlightMesh) {
                 highlightMesh.dispose();
                 highlightMesh = null;
             }
             
-            // Tüm alt mesh'leri temizle
             selectedFurniture.getChildMeshes().forEach(mesh => {
                 if (shadowGenerator) {
                     shadowGenerator.removeShadowCaster(mesh);
@@ -1510,7 +1429,6 @@ function createSelectionHighlight(furniture) {
                 mesh.dispose();
             });
             
-            // Ana node'u temizle
             selectedFurniture.dispose();
             selectedFurniture = null;
             
@@ -1518,74 +1436,60 @@ function createSelectionHighlight(furniture) {
         }
     }
     
-    // Etkileşimleri ayarla
 function setupInteractions() {
-    // Tıklama olayları
     scene.onPointerDown = function(evt, pickInfo) {
-        // Sol tıklama
         if (evt.button === 0) {
             
-            // ÖNCELİKLE PENCERE KONTROLÜ YAP
             if (pickInfo.hit && pickInfo.pickedMesh) {
                 console.log("Tıklanan mesh:", pickInfo.pickedMesh.name);
                 
-                // Sol pencere kanadı kontrolü
                 if (pickInfo.pickedMesh.name === "leftSash") {
                     console.log("Sol pencere kanadı tıklandı!");
                     if (window.toggleSash && window.leftSashRef) {
                         window.toggleSash(window.leftSashRef, -1);
                     }
-                    return; // Diğer işlemleri durdur
+                    return;
                 }
                 
-                // Sağ pencere kanadı kontrolü
-
                 if (pickInfo.pickedMesh.name === "rightSash") {
                     console.log("Sağ pencere kanadı tıklandı!");
                     if (window.toggleSash && window.rightSashRef) {
                         window.toggleSash(window.rightSashRef, 1);
                     }
-                    return; // Diğer işlemleri durdur
+                    return;
                 }
             }
             
-            // Pencere kanadı değilse normal işlemler
             if (placementMode && selectedFurnitureType && pickInfo.hit && pickInfo.pickedMesh === ground) {
-                // Mobilya yerleştirme modu aktifse yeni mobilya yerleştir
                 let newFurniture = placeFurniture(pickInfo.pickedPoint);
                 console.log("Yeni mobilya yerleştirildi:", newFurniture.name);
             } else {
-                // Normal modda mobilya seçmeyi dene
                 selectFurnitureObject(pickInfo);
-                placementMode = false; // Seçim moduna geç
+                placementMode = false;
             }
         }
     };
         
-        
-        // Klavye kontrolleri
         scene.onKeyboardObservable.add((kbInfo) => {
             switch (kbInfo.type) {
                 case BABYLON.KeyboardEventTypes.KEYDOWN:
                     switch (kbInfo.event.key.toLowerCase()) {
-                        case "w": // İleri
+                        case "w":
                             camera.position.addInPlace(camera.getDirection(BABYLON.Axis.Z).scale(0.1));
                             break;
-                        case "s": // Geri
+                        case "s":
                             camera.position.subtractInPlace(camera.getDirection(BABYLON.Axis.Z).scale(0.1));
                             break;
-                        case "a": // Sol
+                        case "a":
                             camera.position.subtractInPlace(camera.getDirection(BABYLON.Axis.X).scale(0.1));
                             break;
-                        case "d": // Sağ
+                        case "d":
                             camera.position.addInPlace(camera.getDirection(BABYLON.Axis.X).scale(0.1));
                             break;
-                        case "r": // Mobilya döndürme
+                        case "r":
                             if (selectedFurniture) {
-                                // 45 derece döndür
                                 selectedFurniture.rotation.y += Math.PI / 4;
                                 
-                                // Vurgulama kutusunu da güncelle
                                 if (highlightMesh) {
                                     highlightMesh.rotation = selectedFurniture.rotation.clone();
                                 }
@@ -1593,7 +1497,7 @@ function setupInteractions() {
                                 console.log("Mobilya döndürüldü:", selectedFurniture.name);
                             }
                             break;
-                        case "delete": // Mobilya silme
+                        case "delete":
                             if (selectedFurniture) {
                                 deleteFurniture();
                             }
@@ -1603,7 +1507,6 @@ function setupInteractions() {
             }
         });
         
-        // UI kontrolleri
         document.getElementById('light-intensity').addEventListener('input', function(e) {
             light.intensity = parseFloat(e.target.value);
         });
@@ -1632,7 +1535,6 @@ function setupInteractions() {
         });
         
         document.getElementById('clear-all').addEventListener('click', function() {
-            // Tüm mobilyaları temizle
             scene.meshes.forEach(mesh => {
                 if (!mesh.name.includes('Template') && 
                     mesh !== ground && 
@@ -1648,7 +1550,6 @@ function setupInteractions() {
             clearSelection();
         });
         
-        // Mobilya seçim butonları
         document.getElementById('sofa-btn').addEventListener('click', function() {
             console.log("Koltuk butonu tıklandı");
             selectFurnitureType('sofa');

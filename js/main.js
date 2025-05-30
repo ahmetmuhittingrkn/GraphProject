@@ -1574,31 +1574,22 @@ function setupInteractions() {
             console.log("Yatak butonu DOM'da bulundu ve tıklandı");
             selectFurnitureType('bed');
             
-            // Manuel olarak da kontrol et:
             this.classList.add('selected');
             console.log("Manuel selected class eklendi");
         });
     }
     
-    // Sahneyi oluştur ve başlat
     scene = createScene();
     
-    // Duvarları ve mobilyaları oluştur
     createWalls();
     loadFurnitureMeshes();
     
-    // ÖNEMLİ: OTOMATİK MOBİLYA YERLEŞTİRME KODUNU DEVRE DIŞI BIRAKTIK
-    // Artık hiçbir mobilya otomatik olarak yerleştirilmiyor
-    
-    // Etkileşimleri ayarla
     setupInteractions();
     
-    // Her kareyi çizme döngüsü
     engine.runRenderLoop(function() {
         scene.render();
     });
     
-    // Pencere boyutu değiştiğinde güncelle
     window.addEventListener('resize', function() {
         engine.resize();
     });
